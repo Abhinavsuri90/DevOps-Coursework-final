@@ -2,6 +2,8 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav (24BCS10282)
 
+[![Session 16 CI](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-ci.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-ci.yml) [![Session 16 CD](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-cd.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-cd.yml)
+
 This is a CI/CD demo project for a small **GPA Calculator API** (Flask + Gunicorn), modelled on the course's `10-final-cicd-pipeline` example and taken further:
 
 - The **CI** workflow lints, tests on three Python versions, builds a package artifact, and builds and smoke-tests a Docker image.

@@ -2,6 +2,8 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav (24BCS10282)
 
+[![Session 17 DevSecOps](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session17-devsecops.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session17-devsecops.yml)
+
 A **Campus Library API** (FastAPI: list, add, borrow and return books) goes through a CI/CD pipeline with security built into every stage. Every stage must pass, including a **security gate**, before the image is pushed to GitHub Container Registry and deployed to Kubernetes.
 
 The pipeline is [.github/workflows/session17-devsecops.yml](../.github/workflows/session17-devsecops.yml), with a copy in [workflows/](workflows/). Every stage was first run locally with the same tool versions. Those transcripts are in [evidence/](evidence/), and the screenshots are renders of them made with [scripts/render-evidence-png.py](../scripts/render-evidence-png.py).

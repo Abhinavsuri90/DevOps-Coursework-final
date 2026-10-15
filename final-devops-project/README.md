@@ -2,6 +2,8 @@
 
 **Course:** SST DevOps & Cloud · **Session 21** · **Author:** Abhinav (24BCS10282)
 
+[![Final project CI/CD](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/final-devops-project.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/final-devops-project.yml)
+
 SpendWise is a small expense tracker for students. You add what you spend (mess fees, books, travel…) and see totals by category. It is my own application, written for this project:
 
 - a FastAPI backend with PostgreSQL and Alembic migrations
@@ -15,9 +17,22 @@ Everything below was actually run:
 - Terminal screenshots are renders of those transcripts made with [scripts/render-evidence-png.py](../scripts/render-evidence-png.py). Each image names its source file and lines.
 - The `browser-*` screenshots are real headless-Chrome captures of the running UIs.
 
+## Quick start
+
+```bash
+cd final-devops-project
+make help          # every shortcut, one line each
+make test          # ruff + 9 pytest tests (SQLite test database)
+make compose-up    # the whole stack on http://localhost:3000
+make scan          # secret, dependency and IaC scans with the same tools as CI
+make status        # what Argo CD has deployed on the cluster
+```
+
+The [Makefile](Makefile) wraps every command used below. [DEMO.md](DEMO.md) is the 5-minute script for the live presentation.
+
 ## Contents
 
-1. [Rubric map](#rubric-map)
+1. [Quick start](#quick-start) · [Rubric map](#rubric-map)
 2. [Project overview](#project-overview)
 3. [Architecture](#architecture)
 4. [Technologies used](#technologies-used)
@@ -233,7 +248,7 @@ The cluster is Minikube (Kubernetes v1.37, containerd, 4 CPUs) with the `ingress
 | Namespace | `spendwise` | [kubernetes/namespace.yaml](kubernetes/namespace.yaml) |
 | Deployment | `spendwise-backend` | FastAPI. The HPA owns the replica count (2–5). Init container `wait-for-db` runs `pg_isready` until PostgreSQL answers. Readiness, liveness and startup probes on `/health`. Hardened `securityContext` |
 | Deployment | `spendwise-frontend` | 2 replicas of nginx-unprivileged. Read-only root filesystem with `emptyDir` mounts for `/etc/nginx/conf.d` and `/tmp`. Probes on `/healthz` |
-| StatefulSet | `spendwise-postgres` | PostgreSQL 17 as uid 70. `volumeClaimTemplates` → PVC `data-spendwise-postgres-0` (1 Gi, `standard` StorageClass). `pg_isready` probes |
+| StatefulSet | `spendwise-postgres` | PostgreSQL 17 as uid/gid 70 with a read-only root filesystem (`emptyDir` for its socket dir and `/tmp`), all capabilities dropped and `RuntimeDefault` seccomp. `volumeClaimTemplates` → PVC `data-spendwise-postgres-0` (1 Gi, `standard` StorageClass). `pg_isready` probes |
 | Service (ClusterIP) | `spendwise-backend` :8000, `spendwise-frontend` :80 → 8080 | `spendwise-postgres` is headless (`clusterIP: None`) for the StatefulSet |
 | ConfigMap | `spendwise-config` | Non-secret settings: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, plus `BACKEND_HOST`/`BACKEND_PORT` for the frontend's nginx proxy |
 | Secret | `spendwise-db` | Database password, created at deploy time by [create-db-secret.sh](kubernetes/create-db-secret.sh) with `openssl rand`. Never stored in Git. `DATABASE_URL` is assembled in the Pod from env vars, using the password from `secretKeyRef` |
@@ -301,15 +316,16 @@ The image helper in [_helpers.tpl](helm/spendwise/templates/_helpers.tpl) uses `
 | [versions.tf](terraform/versions.tf) | Terraform ≥ 1.6, AWS provider `~> 6.68`, `default_tags` (Project, Owner, ManagedBy) on every resource |
 | [vpc.tf](terraform/vpc.tf) | `aws_vpc` 10.21.0.0/16 (DNS hostnames on), `aws_internet_gateway`, **two public subnets** in two AZs (10.21.1.0/24, 10.21.2.0/24, `map_public_ip_on_launch`, tagged `kubernetes.io/role/elb` for load balancers), a public route table `0.0.0.0/0 → IGW` and its associations |
 | [iam.tf](terraform/iam.tf) | Cluster role (`eks.amazonaws.com`, `AmazonEKSClusterPolicy`) and node role (`ec2.amazonaws.com`: `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`) |
-| [eks.tf](terraform/eks.tf) | `aws_eks_cluster` `spendwise-eks` (public endpoint, `authentication_mode = "API"`, creator gets cluster-admin through an access entry) and an `aws_eks_node_group` with 1 × `t3.small` On-Demand (min 1, max 2) in the public subnets |
-| [variables.tf](terraform/variables.tf) / [terraform.tfvars.example](terraform/terraform.tfvars.example) | Region, names, CIDRs, node size and count. No credentials: Terraform reads them from `aws configure` / `aws login` |
+| [kms.tf](terraform/kms.tf) | KMS key (rotation on, 7-day deletion window) and alias for **envelope encryption of Kubernetes Secrets**. The cluster role may use only this key |
+| [eks.tf](terraform/eks.tf) | `aws_eks_cluster` `spendwise-eks`: private endpoint on, public endpoint **limited to `api_allowed_cidrs`**, Secrets encrypted with the KMS key, `authentication_mode = "API"` (the creator gets cluster-admin through an access entry). Plus an `aws_eks_node_group` with 1 × `t3.small` On-Demand (min 1, max 2) in the public subnets |
+| [variables.tf](terraform/variables.tf) / [terraform.tfvars.example](terraform/terraform.tfvars.example) | Region, names, CIDRs, node size and count, and `api_allowed_cidrs` (required; a `validation` block refuses `0.0.0.0/0`). No credentials: Terraform reads them from `aws configure` / `aws login` |
 | [outputs.tf](terraform/outputs.tf) | VPC and subnet IDs, AZs, cluster name, version and endpoint, node group status, and the `aws eks update-kubeconfig` command |
 
-Public subnets keep this lab cheap: there is no NAT gateway, which would cost money every hour even when idle. The nodes still get no inbound traffic except through Kubernetes Services. In production the nodes would go in private subnets behind a NAT gateway.
+Public subnets keep this lab cheap: there is no NAT gateway, which would cost money every hour even when idle. The EKS cluster security group only accepts traffic from the cluster itself, so the nodes get no inbound traffic except through Kubernetes Services. In production the nodes would go in private subnets behind a NAT gateway. This and the public API endpoint are the only two exceptions the [IaC scan](#infrastructure-as-code-scan) allows. Each is written down with its reason in [security/trivyignore-iac](security/trivyignore-iac).
 
 ```bash
 cd final-devops-project/terraform
-cp terraform.tfvars.example terraform.tfvars
+cp terraform.tfvars.example terraform.tfvars   # set api_allowed_cidrs to your own IP: curl -s https://checkip.amazonaws.com
 terraform init
 terraform fmt -check && terraform validate
 terraform plan -out tfplan            # review everything that will be created
@@ -336,11 +352,11 @@ terraform destroy                     # always, straight after the demo
 
 ![terraform init, fmt, validate and dependency graph](screenshots/20-terraform-validate-graph.png)
 
-`plan`, `apply` and `destroy` call AWS and need credentials (`aws login` or `aws configure`, region `ap-south-1`). With the defaults, the plan creates **15 resources**: VPC, IGW, 2 subnets, route table, 2 associations, 2 IAM roles, 4 policy attachments, EKS cluster and node group. To show the result:
+`plan`, `apply` and `destroy` call AWS and need credentials (`aws login` or `aws configure`, region `ap-south-1`). With the defaults, the plan creates **18 resources**: VPC, IGW, 2 subnets, route table, 2 associations, 2 IAM roles, 4 policy attachments, the KMS key, its alias and the cluster's KMS policy, EKS cluster and node group. To show the result:
 
 - `aws eks update-kubeconfig …` then `kubectl get nodes` lists the `t3.small` worker.
 - In the AWS Console (region Mumbai), open **VPC → Your VPCs** for `spendwise-eks-vpc` with its two public subnets, and **EKS → Clusters** for `spendwise-eks` with node group `spendwise-eks-nodes`.
-- `terraform destroy` must end with `Destroy complete! Resources: 15 destroyed.`
+- `terraform destroy` must end with `Destroy complete! Resources: 18 destroyed.`
 
 ## CI/CD pipeline
 
@@ -415,6 +431,7 @@ Every run is listed under [Actions → "Final project · SpendWise CI/CD"](https
 | SCA (lock files) | Trivy 0.74 `fs` | `sca` | Fixable HIGH/CRITICAL | [security/trivy.yaml](security/trivy.yaml) |
 | Secret scanning | Gitleaks 8.30.1 | `secret-scan` | Any finding | [security/gitleaks.toml](security/gitleaks.toml) (default rules + allowlist for evidence/screenshots/lock files) |
 | Container image scanning | Trivy 0.74 `image` | `build-images` (both images) | Fixable HIGH/CRITICAL | [security/trivy.yaml](security/trivy.yaml): `severity: [HIGH, CRITICAL]`, `exit-code: 1`, `ignore-unfixed: true` |
+| IaC scanning | Trivy 0.74 `config` | `sast` | HIGH/CRITICAL misconfigurations in Terraform and the rendered Helm chart | [security/trivyignore-iac](security/trivyignore-iac): 2 documented lab exceptions |
 | Security gate | `security-gate` job | before `push-images` | Every job above must be `success` | workflow |
 
 More hardening is described in [security/SECURITY.md](security/SECURITY.md):
@@ -424,6 +441,28 @@ More hardening is described in [security/SECURITY.md](security/SECURITY.md):
 - pip removed from the runtime image
 - secrets created at deploy time, never in Git
 - SHA image tags
+
+### Infrastructure as Code scan
+
+The pipeline also scans the **infrastructure code** with `trivy config`: the Terraform and the Helm chart rendered as Kubernetes manifests. It fails on HIGH/CRITICAL misconfigurations ([evidence/12-iac-scan.txt](evidence/12-iac-scan.txt)).
+
+| | Before | Fix | After |
+| --- | --- | --- | --- |
+| Terraform | AWS-0039 (HIGH) Secrets not encrypted · AWS-0041 (CRITICAL) API open to `0.0.0.0/0` · AWS-0040 (CRITICAL) public API endpoint · AWS-0164 (HIGH) ×2 public IPs on subnets | KMS key + `encryption_config` · `public_access_cidrs = var.api_allowed_cidrs` (validated, never `0.0.0.0/0`) and a private endpoint · AWS-0040 and AWS-0164 kept as documented lab exceptions | **0 HIGH/CRITICAL** (exit code 0) |
+| Helm chart | KSV-0014 (HIGH) PostgreSQL root filesystem writable, plus capabilities not dropped, no seccomp, missing CPU limits (21 findings) | PostgreSQL: read-only root filesystem with `emptyDir` for `/var/run/postgresql` and `/tmp`, `drop: [ALL]`, `RuntimeDefault` seccomp, `runAsGroup`, CPU limits on every container | **0 HIGH/CRITICAL** (10 LOW/MEDIUM left) |
+
+The hardened PostgreSQL was first tried in a scratch namespace with a fresh database. It initialised and migrated, `touch /etc/x` failed with *Read-only file system*, and `/proc/1/status` showed `CapEff: 0000000000000000`.
+
+The remaining LOW/MEDIUM items are known and accepted:
+
+- nginx (uid 101) and PostgreSQL (uid 70) run as the users their images define
+- *default namespace*: the chart is scanned without a namespace, but it is installed into `spendwise`
+- *registry allow-list*: a cluster admission policy (Kyverno/Gatekeeper) would enforce that
+- *sensitive ConfigMap*: a false positive on the keys `DB_PORT` and `BACKEND_PORT`
+
+![IaC scan before the fixes](screenshots/24-iac-scan-before.png)
+
+![IaC scan after the fixes: the CI gate passes](screenshots/25-iac-scan-after.png)
 
 **Local dry run** of the security stages with the same tool versions as CI:
 
@@ -668,6 +707,7 @@ These were not planted. They came up while building and running the project, and
 | 27 | [browser-13-github-commits.png](screenshots/browser-13-github-commits.png) | Commit history (M3) |
 | 28 | [21](screenshots/21-gitops-handover.png) · [22](screenshots/22-argocd-deploys-spendwise.png) · [browser-10](screenshots/browser-10-argocd-spendwise.png) | GitOps handover to Argo CD, and the Argo CD application tree |
 | 29 | [browser-09](screenshots/browser-09-gitops-before.png) · [browser-14](screenshots/browser-14-gitops-after.png) · [23](screenshots/23-m10-commit-to-deploy.png) | M10 live demo: before, after, and the whole chain in the terminal |
+| 30 | [24](screenshots/24-iac-scan-before.png) · [25](screenshots/25-iac-scan-after.png) | IaC scan of Terraform and the Helm chart, before and after the fixes |
 
 ## Lessons learned
 
@@ -682,6 +722,7 @@ These were not planted. They came up while building and running the project, and
 9. **GitOps removes cluster credentials from CI.** The pipeline only commits a tag. Argo CD pulls the change, and drift is reverted automatically.
 10. **Make CI failures readable by everyone.** GitHub logs need a login, but annotations do not, so the pipeline publishes its diagnostics and Trivy results as annotations. That is how the `helm test` problem that happened only on the runner was found.
 11. **Size liveness probes for the slowest node you run on.** With 1 s timeouts a busy laptop cluster restarted healthy Pods in a loop. Lenient liveness, strict readiness and a smaller HPA cap made the next rollout restart-free.
+12. **Scan the infrastructure, not only the application.** `trivy config` found Kubernetes Secrets without KMS encryption, an API endpoint open to the whole internet and a writable PostgreSQL root filesystem. None of these would show up in a code or image scan.
 
 ## Cleanup
 

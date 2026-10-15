@@ -2,6 +2,8 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav (24BCS10282)
 
+[![Final project CI/CD](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/final-devops-project.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/final-devops-project.yml) [![Session 16 CI](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-ci.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-ci.yml) [![Session 16 CD](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-cd.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-cd.yml) [![Session 17 DevSecOps](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session17-devsecops.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session17-devsecops.yml)
+
 This repository holds all of my DevOps homework, from Linux basics to a complete DevOps project. Every session folder has a `README.md` with explanations, the commands I ran, and screenshots. Command output was recorded from real runs and is saved next to each README (in `evidence/` folders and session transcripts).
 
 ## Final project: SpendWise
