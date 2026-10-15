@@ -38,7 +38,10 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 70        # "postgres" user in the Alpine image
+        runAsGroup: 70
         fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: postgres
           image: {{ .Values.database.image }}
@@ -79,9 +82,22 @@ spec:
             {{- toYaml .Values.database.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            # The root filesystem is read-only: the socket/lock directory and /tmp are scratch volumes.
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data

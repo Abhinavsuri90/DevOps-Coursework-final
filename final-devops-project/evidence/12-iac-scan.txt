@@ -1,0 +1,92 @@
+# IaC scan (Trivy config). BEFORE = the code as last committed (copied from git into $BEFORE), AFTER = the fixed code
+# BEFORE, Terraform: HIGH/CRITICAL misconfigurations
+$ docker run --rm -v "$BEFORE:/src" -w /src aquasec/trivy:0.74.0 config --quiet --severity HIGH,CRITICAL --format table terraform 2>/dev/null | grep -E '^(AWS|KSV)-[0-9]+ \(' | sort | uniq -c
+   1 AWS-0039 (HIGH): Cluster does not have secret encryption enabled.
+   1 AWS-0040 (CRITICAL): Public cluster access is enabled.
+   1 AWS-0041 (CRITICAL): Cluster allows access from a public CIDR: 0.0.0.0/0
+   2 AWS-0164 (HIGH): Subnet associates public IP address.
+# BEFORE, Helm chart (rendered with test tags): every failed check
+$ docker run --rm -v "$BEFORE:/src" -w /src aquasec/trivy:0.74.0 config --quiet --helm-set backend.image.tag=scan,frontend.image.tag=scan --format table helm/spendwise 2>/dev/null | grep -E '^(AWS|KSV)-[0-9]+ \(' | sort | uniq -c
+   1 KSV-0003 (LOW): Container 'postgres' of StatefulSet 'spendwise-postgres' should add 'ALL' to 'securityContext.capabilities.drop'
+   1 KSV-0004 (LOW): Container 'postgres' of 'statefulset' 'spendwise-postgres' in 'default' namespace should set securityContext.capabilities.drop
+   1 KSV-0011 (LOW): Container 'postgres' of StatefulSet 'spendwise-postgres' should set 'resources.limits.cpu'
+   1 KSV-0011 (LOW): Container 'wait-for-db' of Deployment 'spendwise-backend' should set 'resources.limits.cpu'
+   1 KSV-0011 (LOW): Container 'web' of Deployment 'spendwise-frontend' should set 'resources.limits.cpu'
+   1 KSV-0014 (HIGH): Container 'postgres' of StatefulSet 'spendwise-postgres' should set 'securityContext.readOnlyRootFilesystem' to true
+   1 KSV-0020 (LOW): Container 'postgres' of StatefulSet 'spendwise-postgres' should set 'securityContext.runAsUser' > 10000
+   1 KSV-0020 (LOW): Container 'web' of Deployment 'spendwise-frontend' should set 'securityContext.runAsUser' > 10000
+   1 KSV-0021 (LOW): Container 'api' of Deployment 'spendwise-backend' should set 'securityContext.runAsGroup' > 10000
+   1 KSV-0021 (LOW): Container 'postgres' of StatefulSet 'spendwise-postgres' should set 'securityContext.runAsGroup' > 10000
+   1 KSV-0021 (LOW): Container 'wait-for-db' of Deployment 'spendwise-backend' should set 'securityContext.runAsGroup' > 10000
+   1 KSV-0021 (LOW): Container 'web' of Deployment 'spendwise-frontend' should set 'securityContext.runAsGroup' > 10000
+   1 KSV-0030 (LOW): Either Pod or Container should set 'securityContext.seccompProfile.type' to 'RuntimeDefault'
+   1 KSV-01010 (MEDIUM): ConfigMap 'spendwise-config' in 'default' namespace stores sensitive contents in key(s) or value(s) '{"BACKEND_PORT", "DB_PORT"}'
+   1 KSV-0104 (MEDIUM): container "postgres" of statefulset "spendwise-postgres" in "default" namespace should specify a seccomp profile
+   1 KSV-0106 (LOW): container should drop all
+   1 KSV-0110 (LOW): deployment spendwise-backend in default namespace should set metadata.namespace to a non-default namespace
+   1 KSV-0110 (LOW): deployment spendwise-frontend in default namespace should set metadata.namespace to a non-default namespace
+   1 KSV-0110 (LOW): statefulset spendwise-postgres in default namespace should set metadata.namespace to a non-default namespace
+   1 KSV-0125 (MEDIUM): Container api in deployment spendwise-backend (namespace: default) uses an image from an untrusted registry.
+   1 KSV-0125 (MEDIUM): Container web in deployment spendwise-frontend (namespace: default) uses an image from an untrusted registry.
+# FIXES: KMS envelope encryption for Secrets, API endpoint limited to api_allowed_cidrs + private endpoint;
+# PostgreSQL: read-only root filesystem, all capabilities dropped, RuntimeDefault seccomp; CPU limits everywhere
+$ cat security/trivyignore-iac | grep -v '^#' | grep -v '^$'
+AWS-0040
+AWS-0164
+# AFTER, Terraform (with the two documented lab exceptions) and the Helm chart: the CI gate commands
+$ docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:0.74.0 config --quiet --severity HIGH,CRITICAL --ignorefile security/trivyignore-iac --exit-code 1 terraform; echo "terraform: exit code $?"
+
+Report Summary
+
+┌────────┬───────────┬───────────────────┐
+│ Target │   Type    │ Misconfigurations │
+├────────┼───────────┼───────────────────┤
+│ .      │ terraform │         0         │
+├────────┼───────────┼───────────────────┤
+│ eks.tf │ terraform │         0         │
+├────────┼───────────┼───────────────────┤
+│ vpc.tf │ terraform │         0         │
+└────────┴───────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+terraform: exit code 0
+$ docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:0.74.0 config --quiet --severity HIGH,CRITICAL --helm-set backend.image.tag=scan,frontend.image.tag=scan --exit-code 1 helm/spendwise; echo "helm chart: exit code $?"
+
+Report Summary
+
+┌──────────────────────────┬──────┬───────────────────┐
+│          Target          │ Type │ Misconfigurations │
+├──────────────────────────┼──────┼───────────────────┤
+│ templates/backend.yaml   │ helm │         0         │
+├──────────────────────────┼──────┼───────────────────┤
+│ templates/configmap.yaml │ helm │         0         │
+├──────────────────────────┼──────┼───────────────────┤
+│ templates/frontend.yaml  │ helm │         0         │
+├──────────────────────────┼──────┼───────────────────┤
+│ templates/hpa.yaml       │ helm │         0         │
+├──────────────────────────┼──────┼───────────────────┤
+│ templates/ingress.yaml   │ helm │         0         │
+├──────────────────────────┼──────┼───────────────────┤
+│ templates/pdb.yaml       │ helm │         0         │
+├──────────────────────────┼──────┼───────────────────┤
+│ templates/postgres.yaml  │ helm │         0         │
+└──────────────────────────┴──────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+helm chart: exit code 0
+# AFTER, Helm chart: what is left (LOW/MEDIUM only, explained in the README)
+$ docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:0.74.0 config --quiet --helm-set backend.image.tag=scan,frontend.image.tag=scan --format table helm/spendwise 2>/dev/null | grep -E '^(AWS|KSV)-[0-9]+ \(' | sort | uniq -c
+   1 KSV-0020 (LOW): Container 'postgres' of StatefulSet 'spendwise-postgres' should set 'securityContext.runAsUser' > 10000
+   1 KSV-0020 (LOW): Container 'web' of Deployment 'spendwise-frontend' should set 'securityContext.runAsUser' > 10000
+   1 KSV-0021 (LOW): Container 'postgres' of StatefulSet 'spendwise-postgres' should set 'securityContext.runAsGroup' > 10000
+   1 KSV-0021 (LOW): Container 'web' of Deployment 'spendwise-frontend' should set 'securityContext.runAsGroup' > 10000
+   1 KSV-01010 (MEDIUM): ConfigMap 'spendwise-config' in 'default' namespace stores sensitive contents in key(s) or value(s) '{"BACKEND_PORT", "DB_PORT"}'
+   1 KSV-0110 (LOW): deployment spendwise-backend in default namespace should set metadata.namespace to a non-default namespace
+   1 KSV-0110 (LOW): deployment spendwise-frontend in default namespace should set metadata.namespace to a non-default namespace
+   1 KSV-0110 (LOW): statefulset spendwise-postgres in default namespace should set metadata.namespace to a non-default namespace
+   1 KSV-0125 (MEDIUM): Container api in deployment spendwise-backend (namespace: default) uses an image from an untrusted registry.
+   1 KSV-0125 (MEDIUM): Container web in deployment spendwise-frontend (namespace: default) uses an image from an untrusted registry.

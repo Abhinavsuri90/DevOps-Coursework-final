@@ -1,0 +1,11 @@
+# Accepted infrastructure risks for this low-cost student lab (trivy config on terraform/).
+# Every entry is explained in the README ("Terraform infrastructure"); everything else must pass.
+
+# AWS-0040: the EKS API keeps a public endpoint so kubectl can run from a laptop without a VPN or
+# bastion. It only accepts var.api_allowed_cidrs (your own IP); nodes use the private endpoint.
+AWS-0040
+
+# AWS-0164: the subnets give nodes public IPs because the lab has no NAT gateway (billed every hour).
+# The EKS cluster security group only accepts traffic from the cluster itself.
+# Production: private subnets for nodes behind a NAT gateway.
+AWS-0164

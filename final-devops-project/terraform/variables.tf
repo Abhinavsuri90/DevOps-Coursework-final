@@ -45,3 +45,13 @@ variable "node_desired_size" {
   type        = number
   default     = 1
 }
+
+variable "api_allowed_cidrs" {
+  description = "CIDRs allowed to reach the public Kubernetes API endpoint, e.g. your own IP: [\"203.0.113.10/32\"] (curl -s https://checkip.amazonaws.com)."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.api_allowed_cidrs) > 0 && !contains(var.api_allowed_cidrs, "0.0.0.0/0")
+    error_message = "Give at least one CIDR and do not open the API to 0.0.0.0/0."
+  }
+}

@@ -30,3 +30,8 @@ output "kubeconfig_command" {
   description = "Run this to point kubectl at the new cluster."
   value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.main.name}"
 }
+
+output "secrets_kms_key_arn" {
+  description = "KMS key that encrypts Kubernetes Secrets."
+  value       = aws_kms_key.eks.arn
+}

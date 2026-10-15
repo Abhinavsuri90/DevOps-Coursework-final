@@ -83,7 +83,7 @@ jobs:
           path: final-devops-project/application/frontend/dist/
 
   sast:
-    name: SAST · Bandit + CodeQL
+    name: SAST · Bandit + CodeQL + IaC scan
     needs: [backend-test, frontend-build]
     runs-on: ubuntu-latest
     permissions:
@@ -99,6 +99,14 @@ jobs:
       - name: Bandit (fails on medium or high)
         working-directory: final-devops-project/application/backend
         run: bandit -c pyproject.toml -r app --severity-level medium
+      - name: IaC misconfiguration scan (Trivy config - Terraform + Helm chart)
+        working-directory: final-devops-project
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" config --severity HIGH,CRITICAL \
+            --ignorefile security/trivyignore-iac --exit-code 1 terraform
+          docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" config --severity HIGH,CRITICAL \
+            --helm-set backend.image.tag=ci,frontend.image.tag=ci --exit-code 1 helm/spendwise
+          echo "::notice title=IaC scan (Trivy config)::Terraform and Helm chart: 0 HIGH/CRITICAL misconfigurations (lab exceptions documented in security/trivyignore-iac)"
       - uses: github/codeql-action/init@v4
         with:
           languages: python, javascript-typescript
@@ -202,7 +210,7 @@ jobs:
             echo "### Security gate"
             echo "| Check | Result |"
             echo "| --- | --- |"
-            echo "| SAST (Bandit, CodeQL) | ${{ needs.sast.result }} |"
+            echo "| SAST (Bandit, CodeQL, IaC scan) | ${{ needs.sast.result }} |"
             echo "| SCA (pip-audit, npm audit, Trivy fs) | ${{ needs.sca.result }} |"
             echo "| Secret scan (Gitleaks) | ${{ needs.secret-scan.result }} |"
             echo "| Image scan (Trivy) | ${{ needs.build-images.result }} |"
