@@ -21,6 +21,10 @@ This module documents practical networking troubleshooting, connectivity checks,
 
 ## 2. Real Captured Execution Output
 
+The recorded run ([evidence/networking-output.txt](evidence/networking-output.txt)), rendered as a screenshot:
+
+![Networking commands run](screenshots/01-network-commands.png)
+
 ```bash
 ping -c 2 google.com
 nc -zv google.com 80

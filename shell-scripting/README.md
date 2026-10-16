@@ -20,6 +20,10 @@ Enter an output file name for process listing: processes.txt
 
 ## 2. Real Captured Execution Output
 
+The recorded run ([evidence/system-info-output.txt](evidence/system-info-output.txt)), rendered as a screenshot:
+
+![system-info.sh run](screenshots/01-system-info-run.png)
+
 ```
 ==========================================
          SYSTEM INFORMATION SCRIPT        
