@@ -19,6 +19,8 @@ This repository holds all of my DevOps homework, from Linux basics to a complete
 - **Infrastructure:** Terraform for AWS (VPC + EKS).
 - **Troubleshooting:** a five-fault troubleshooting challenge.
 
+**Grading:** the [rubric map](final-devops-project/README.md#rubric-map) links every capstone requirement (M1–M10) to its file, screenshot and recorded evidence. The project follows the brief's layout: `backend/`, `frontend/`, `docker-compose.yml`, `k8s/`, `helm/`, `terraform/`, `monitoring/`, `.github/workflows/`.
+
 ## Sessions
 
 | Session | Topic | README |

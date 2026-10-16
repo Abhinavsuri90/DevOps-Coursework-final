@@ -1,0 +1,182 @@
+# M7 Terraform on AWS: VPC + 2 public subnets + EKS + managed node group, region ap-southeast-2 (the Free-plan account's region)
+# 'mask' hides the 12-digit AWS account ID (<account-id>) and my public IP (<my-ip>)
+$ terraform init -input=false -no-color | grep -E 'Initializing|Reusing|Installed|successfully'
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+Terraform has been successfully initialized!
+$ terraform fmt -check && echo 'fmt: all files already formatted'
+fmt: all files already formatted
+$ terraform validate -no-color
+Success! The configuration is valid.
+
+$ grep -v '^#' terraform.tfvars | mask
+aws_region         = "ap-southeast-2"
+cluster_name       = "spendwise-eks"
+node_instance_type = "t3.small"
+node_desired_size  = 1
+api_allowed_cidrs  = ["<my-ip>/32"] # your public IP: curl -s https://checkip.amazonaws.com
+# terraform plan
+$ terraform plan -input=false -no-color -out eks.tfplan 2>&1 | grep -E '^  # |^Plan:|Error' | mask
+  # aws_eks_cluster.main will be created
+  # aws_eks_node_group.default will be created
+  # aws_iam_role.cluster will be created
+  # aws_iam_role.node will be created
+  # aws_iam_role_policy.cluster_kms will be created
+  # aws_iam_role_policy_attachment.cluster will be created
+  # aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"] will be created
+  # aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"] will be created
+  # aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"] will be created
+  # aws_internet_gateway.main will be created
+  # aws_kms_alias.eks will be created
+  # aws_kms_key.eks will be created
+  # aws_route_table.public will be created
+  # aws_route_table_association.public[0] will be created
+  # aws_route_table_association.public[1] will be created
+  # aws_subnet.public[0] will be created
+  # aws_subnet.public[1] will be created
+  # aws_vpc.main will be created
+Plan: 18 to add, 0 to change, 0 to destroy.
+# terraform apply (EKS control plane ~10 min, then the managed node group)
+$ SECONDS=0; terraform apply -input=false -no-color eks.tfplan 2>&1 | grep -E 'Creation complete|Apply complete|Error' | mask; echo "apply took $((SECONDS/60)) min $((SECONDS%60)) s"
+aws_iam_role.node: Creation complete after 3s [id=spendwise-eks-node-role]
+aws_iam_role.cluster: Creation complete after 4s [id=spendwise-eks-cluster-role]
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"]: Creation complete after 1s [id=spendwise-eks-node-role/arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy]
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"]: Creation complete after 1s [id=spendwise-eks-node-role/arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly]
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"]: Creation complete after 2s [id=spendwise-eks-node-role/arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy]
+aws_iam_role_policy_attachment.cluster: Creation complete after 1s [id=spendwise-eks-cluster-role/arn:aws:iam::aws:policy/AmazonEKSClusterPolicy]
+aws_vpc.main: Creation complete after 6s [id=vpc-0600fc3c420f0a3bf]
+aws_internet_gateway.main: Creation complete after 3s [id=igw-06c19290386a481e7]
+aws_route_table.public: Creation complete after 3s [id=rtb-05d7ada5c456116d2]
+aws_subnet.public[1]: Creation complete after 14s [id=subnet-01ac369f684f29940]
+aws_subnet.public[0]: Creation complete after 14s [id=subnet-0d7ffc550414caf69]
+aws_route_table_association.public[0]: Creation complete after 1s [id=rtbassoc-06bcc0e231a909cf7]
+aws_kms_key.eks: Creation complete after 21s [id=5c2cbe5b-f4c9-4096-b812-a91b60bef4ff]
+aws_route_table_association.public[1]: Creation complete after 1s [id=rtbassoc-0b29de7d3446a8a7a]
+aws_kms_alias.eks: Creation complete after 1s [id=alias/spendwise-eks-secrets]
+aws_iam_role_policy.cluster_kms: Creation complete after 1s [id=spendwise-eks-cluster-role:spendwise-eks-secrets-kms]
+aws_eks_cluster.main: Creation complete after 10m3s [id=spendwise-eks]
+aws_eks_node_group.default: Creation complete after 1m34s [id=spendwise-eks:spendwise-eks-nodes]
+Apply complete! Resources: 18 added, 0 changed, 0 destroyed.
+apply took 12 min 3 s
+$ terraform output -no-color | mask
+cluster_endpoint = "https://0ECFD503D142C2504FD4875AF6F7934E.yl4.ap-southeast-2.eks.amazonaws.com"
+cluster_name = "spendwise-eks"
+cluster_version = "1.36"
+kubeconfig_command = "aws eks update-kubeconfig --region ap-southeast-2 --name spendwise-eks"
+node_group_status = "ACTIVE"
+public_subnet_azs = [
+  "ap-southeast-2a",
+  "ap-southeast-2b",
+]
+public_subnet_ids = [
+  "subnet-0d7ffc550414caf69",
+  "subnet-01ac369f684f29940",
+]
+secrets_kms_key_arn = "arn:aws:kms:ap-southeast-2:<account-id>:key/5c2cbe5b-f4c9-4096-b812-a91b60bef4ff"
+vpc_id = "vpc-0600fc3c420f0a3bf"
+# Verify: kubectl reaches the cluster (separate kubeconfig file, so the local Minikube context is untouched)
+$ aws eks update-kubeconfig --region ap-southeast-2 --name spendwise-eks --kubeconfig eks.kubeconfig | sed 's#/Users/[^ ]*/##' | mask
+Added new context arn:aws:eks:ap-southeast-2:<account-id>:cluster/spendwise-eks to eks.kubeconfig
+$ kubectl --kubeconfig eks.kubeconfig get nodes -o wide
+NAME                                             STATUS   ROLES    AGE   VERSION               INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                        KERNEL-VERSION                            CONTAINER-RUNTIME
+ip-10-21-2-190.ap-southeast-2.compute.internal   Ready    <none>   64s   v1.36.4-eks-b9510e3   10.21.2.190   3.26.55.61    Amazon Linux 2023.12.20261012   6.18.54-121.166.amzn2023.x86_64 (amd64)   containerd://2.3.5+unknown
+$ kubectl --kubeconfig eks.kubeconfig get pods -n kube-system
+NAME                       READY   STATUS    RESTARTS   AGE
+aws-node-ddpkr             2/2     Running   0          65s
+coredns-76fccb8cc6-jtfnd   1/1     Running   0          4m9s
+coredns-76fccb8cc6-xpwb2   1/1     Running   0          4m9s
+kube-proxy-nhvb5           1/1     Running   0          65s
+# Cluster settings that the IaC scan asked for: private endpoint on, public endpoint limited to my IP, Secrets encrypted with KMS
+$ aws eks describe-cluster --name spendwise-eks --query 'cluster.{status:status,version:version,privateEndpoint:resourcesVpcConfig.endpointPrivateAccess,publicEndpoint:resourcesVpcConfig.endpointPublicAccess,publicCidrs:resourcesVpcConfig.publicAccessCidrs,encrypted:encryptionConfig[0].resources}' --output json | mask
+{
+    "status": "ACTIVE",
+    "version": "1.36",
+    "privateEndpoint": true,
+    "publicEndpoint": true,
+    "publicCidrs": [
+        "<my-ip>/32"
+    ],
+    "encrypted": [
+        "secrets"
+    ]
+}
+$ aws eks describe-nodegroup --cluster-name spendwise-eks --nodegroup-name spendwise-eks-nodes --query 'nodegroup.{status:status,instanceTypes:instanceTypes,capacity:capacityType,scaling:scalingConfig}' --output json
+{
+    "status": "ACTIVE",
+    "instanceTypes": [
+        "t3.small"
+    ],
+    "capacity": "ON_DEMAND",
+    "scaling": {
+        "minSize": 1,
+        "maxSize": 2,
+        "desiredSize": 1
+    }
+}
+$ aws ec2 describe-subnets --filters Name=vpc-id,Values=$(terraform output -raw vpc_id) --query 'Subnets[].[Tags[?Key==`Name`]|[0].Value,AvailabilityZone,CidrBlock,MapPublicIpOnLaunch]' --output text | sort
+spendwise-eks-public-1	ap-southeast-2a	10.21.1.0/24	True
+spendwise-eks-public-2	ap-southeast-2b	10.21.2.0/24	True
+# A workload on the node group: 2 nginx replicas (image from ECR Public), then removed again
+$ kubectl --kubeconfig eks.kubeconfig create deployment hello --image=public.ecr.aws/nginx/nginx:1.27-alpine --replicas=2 && kubectl --kubeconfig eks.kubeconfig rollout status deployment/hello --timeout=180s
+deployment.apps/hello created
+Waiting for deployment "hello" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "hello" rollout to finish: 1 of 2 updated replicas are available...
+deployment "hello" successfully rolled out
+$ kubectl --kubeconfig eks.kubeconfig get pods -l app=hello -o wide
+NAME                    READY   STATUS    RESTARTS   AGE   IP            NODE                                             NOMINATED NODE   READINESS GATES
+hello-94f968494-d5jgb   1/1     Running   0          8s    10.21.2.142   ip-10-21-2-190.ap-southeast-2.compute.internal   <none>           <none>
+hello-94f968494-gxz8x   1/1     Running   0          8s    10.21.2.156   ip-10-21-2-190.ap-southeast-2.compute.internal   <none>           <none>
+$ kubectl --kubeconfig eks.kubeconfig delete deployment hello
+deployment.apps "hello" deleted from default namespace
+# terraform destroy, straight after the checks (node group first, then the cluster, the VPC and the IAM roles)
+$ SECONDS=0; terraform destroy -auto-approve -input=false -no-color 2>&1 | grep -E 'Destruction complete|Destroy complete|Error' | mask; echo "destroy took $((SECONDS/60)) min $((SECONDS%60)) s"
+aws_kms_alias.eks: Destruction complete after 1s
+aws_route_table_association.public[0]: Destruction complete after 4s
+aws_route_table_association.public[1]: Destruction complete after 4s
+aws_route_table.public: Destruction complete after 3s
+aws_internet_gateway.main: Destruction complete after 6m34s
+aws_eks_node_group.default: Destruction complete after 8m22s
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"]: Destruction complete after 12s
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"]: Destruction complete after 12s
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"]: Destruction complete after 12s
+aws_iam_role.node: Destruction complete after 1s
+aws_eks_cluster.main: Destruction complete after 2m44s
+aws_iam_role_policy_attachment.cluster: Destruction complete after 1s
+aws_iam_role_policy.cluster_kms: Destruction complete after 1s
+aws_iam_role.cluster: Destruction complete after 1s
+aws_subnet.public[0]: Destruction complete after 2s
+aws_subnet.public[1]: Destruction complete after 2s
+aws_kms_key.eks: Destruction complete after 2s
+aws_vpc.main: Destruction complete after 2s
+Destroy complete! Resources: 18 destroyed.
+destroy took 11 min 38 s
+# Everything is gone
+$ terraform state list | wc -l | sed 's/^ */resources left in state: /'
+resources left in state: 0
+$ aws eks describe-cluster --name spendwise-eks 2>&1 | tail -1 | mask
+clusterName: spendwise-eks
+$ aws ec2 describe-vpcs --vpc-ids vpc-0600fc3c420f0a3bf 2>&1 | tail -1
+aws: [ERROR]: An error occurred (InvalidVpcID.NotFound) when calling the DescribeVpcs operation: The vpc ID 'vpc-0600fc3c420f0a3bf' does not exist
+$ aws ec2 describe-instances --filters Name=tag:eks:cluster-name,Values=spendwise-eks --query 'Reservations[].Instances[].[InstanceId,InstanceType,State.Name]' --output text
+i-09636281ca440b2d2	t3.small	terminated
+$ aws kms describe-key --key-id 5c2cbe5b-f4c9-4096-b812-a91b60bef4ff --query 'KeyMetadata.[KeyState,DeletionDate]' --output text
+PendingDeletion	2026-10-23T11:29:50.232000+05:30
+# Nothing billable left in the region (the Session 18 and 19 stacks were destroyed the same day)
+$ aws eks list-clusters --query 'length(clusters)'
+0
+$ aws ec2 describe-instances --filters Name=instance-state-name,Values=pending,running,stopping,stopped --query 'length(Reservations)'
+0
+$ aws ec2 describe-vpcs --filters Name=is-default,Values=false --query 'length(Vpcs)'
+0
+$ aws ec2 describe-addresses --query 'length(Addresses)'
+0
+$ aws s3api list-buckets --query 'length(Buckets)'
+0
+# The describe-cluster check above kept only the last line of the error (this CLI version prints the error's fields after the message). The whole error:
+$ aws eks describe-cluster --name spendwise-eks 2>&1 | mask
+
+aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the DescribeCluster operation: No cluster found for name: spendwise-eks.
+
+Additional error details:
+clusterName: spendwise-eks

@@ -55,14 +55,14 @@ The [Makefile](Makefile) wraps every command used below. [DEMO.md](DEMO.md) is t
 
 | Module | What is required | Where it is |
 | --- | --- | --- |
-| M1 Application | FastAPI `/health`, ≥ 4 REST endpoints (GET/POST/PUT/DELETE), PostgreSQL table managed by Alembic, React UI | [application/backend/app/main.py](application/backend/app/main.py), [alembic/versions/0001_create_expenses.py](application/backend/alembic/versions/0001_create_expenses.py), [application/frontend/src/App.jsx](application/frontend/src/App.jsx) · [screenshot](screenshots/browser-01-compose-app.png) |
-| M2 Testing | pytest passes, ≥ 5 tests over ≥ 3 endpoints, test DB, `pytest.ini` / `conftest.py` | [tests/test_expenses.py](application/backend/tests/test_expenses.py) (9 tests, 97% coverage), [tests/conftest.py](application/backend/tests/conftest.py) (SQLite test DB), [pytest.ini](application/backend/pytest.ini) · [screenshot](screenshots/02-tests.png) |
+| M1 Application | FastAPI `/health`, ≥ 4 REST endpoints (GET/POST/PUT/DELETE), PostgreSQL table managed by Alembic, React UI | [backend/app/main.py](backend/app/main.py), [alembic/versions/0001_create_expenses.py](backend/alembic/versions/0001_create_expenses.py), [frontend/src/App.jsx](frontend/src/App.jsx) · [screenshot](screenshots/browser-01-compose-app.png) |
+| M2 Testing | pytest passes, ≥ 5 tests over ≥ 3 endpoints, test DB, `pytest.ini` / `conftest.py` | [tests/test_expenses.py](backend/tests/test_expenses.py) (9 tests, 97% coverage), [tests/conftest.py](backend/tests/conftest.py) (SQLite test DB), [pytest.ini](backend/pytest.ini) · [screenshot](screenshots/02-tests.png) |
 | M3 Git & GitHub | Public repo, meaningful commits, `.gitignore` | [github.com/Abhinavsuri90/DevOps-Coursework-final](https://github.com/Abhinavsuri90/DevOps-Coursework-final), [.gitignore](.gitignore) (`.env`, `__pycache__/`, `node_modules/`, `.venv/`, state files) · [commit history](screenshots/browser-13-github-commits.png) |
-| M4 Docker | Backend Dockerfile, multi-stage frontend Dockerfile, non-root, `docker compose up --build` | [docker/backend.Dockerfile](docker/backend.Dockerfile), [docker/frontend.Dockerfile](docker/frontend.Dockerfile), [docker/docker-compose.yml](docker/docker-compose.yml) · [screenshot](screenshots/01-docker-compose.png) |
+| M4 Docker | Backend Dockerfile, multi-stage frontend Dockerfile, non-root, `docker compose up --build` | [backend/Dockerfile](backend/Dockerfile), [frontend/Dockerfile](frontend/Dockerfile) (multi-stage), [docker-compose.yml](docker-compose.yml) · [screenshot](screenshots/01-docker-compose.png) |
 | M5 CI/CD | Workflow on push to `main`, pytest gate, frontend build, both images built, pushed to GHCR with SHA tags | [.github/workflows/final-devops-project.yml](../.github/workflows/final-devops-project.yml) (copy in [.github/workflows/](.github/workflows/)) · [green run](screenshots/browser-11-github-actions-run.png) · [GHCR SHA tags](screenshots/browser-12-ghcr-tags.png) |
 | M6 DevSecOps | Trivy on both images, fails on HIGH/CRITICAL, explanation | `build-images` job + [security/trivy.yaml](security/trivy.yaml) · [Trivy results from CI](screenshots/browser-15-github-trivy-annotations.png) · [explanation](#devsecops-implementation) |
-| M7 Terraform | VPC with 2 public subnets, EKS with a node group, plan/apply/destroy, `tfvars.example` | [terraform/](terraform/) · [Terraform infrastructure](#terraform-infrastructure) |
-| M8 Kubernetes + Helm | Namespace, chart, 2+ replicas each, ClusterIP Services, Ingress `/` → frontend and `/api` → backend | [kubernetes/namespace.yaml](kubernetes/namespace.yaml), [helm/spendwise/](helm/spendwise/) · [screenshots](#kubernetes-deployment) |
+| M7 Terraform | VPC with 2 public subnets, EKS with a node group, plan/apply/destroy, `tfvars.example` | [terraform/](terraform/), [terraform.tfvars.example](terraform/terraform.tfvars.example) · [Terraform infrastructure](#terraform-infrastructure) · applied, verified with `kubectl` and destroyed on AWS: [recorded run](#recorded-run-on-aws), [evidence](evidence/14-terraform-aws-eks.txt) |
+| M8 Kubernetes + Helm | Namespace, chart, 2+ replicas each, ClusterIP Services, Ingress `/` → frontend and `/api` → backend | [k8s/namespace.yaml](k8s/namespace.yaml), [helm/spendwise/](helm/spendwise/) · [screenshots](#kubernetes-deployment) |
 | M9 Observability | `/metrics`, Prometheus scraping, Grafana panels with live data | [monitoring/](monitoring/), ServiceMonitor/rules/dashboard in the chart · [Monitoring](#monitoring) |
 | M10 Docs + demo | This README; commit → pipeline → deployment update | this file · [recorded live demo](#live-demo-m10-commit--pipeline--deployment-update-recorded) |
 
@@ -128,7 +128,7 @@ flowchart LR
     Repo -->|Argo CD polls main| Argo
     GHCR -->|image pull| BE
     GHCR -->|image pull| FE
-    TF[Terraform] -->|provisions| AWS[(AWS ap-south-1<br/>VPC + 2 public subnets<br/>EKS + node group)]
+    TF[Terraform] -->|provisions| AWS[(AWS ap-southeast-2<br/>VPC + 2 public subnets<br/>EKS + node group)]
     User([Browser]) --> ING
 ```
 
@@ -157,12 +157,11 @@ flowchart LR
 
 ```text
 final-devops-project/
-├── application/
-│   ├── backend/            # FastAPI app, Alembic migrations, pytest tests, pytest.ini
-│   └── frontend/           # React + Vite UI
-├── docker/                 # backend.Dockerfile, frontend.Dockerfile (multi-stage), nginx.conf.template,
-│                           # docker-compose.yml, .env.example
-├── kubernetes/             # namespace.yaml, create-db-secret.sh, render.sh, spendwise-rendered.yaml
+├── backend/                # FastAPI app (app/), Alembic migrations (alembic/versions/), tests/, pytest.ini,
+│                           # requirements.txt, Dockerfile
+├── frontend/               # React + Vite UI (src/), Dockerfile (multi-stage: Node build + nginx), nginx.conf.template
+├── docker-compose.yml      # postgres + backend + frontend; the DB password comes from .env (see .env.example)
+├── k8s/                    # namespace.yaml, create-db-secret.sh, render.sh, spendwise-rendered.yaml
 ├── helm/spendwise/         # the Helm chart (values.yaml, values-local.yaml, values-gitops.yaml, templates/)
 ├── terraform/              # VPC + 2 public subnets + EKS cluster + managed node group
 ├── .github/workflows/      # copy of the pipeline (the active file is in the repo root .github/workflows/)
@@ -174,12 +173,14 @@ final-devops-project/
 └── screenshots/            # rendered transcripts + browser captures
 ```
 
+The layout follows the course brief (`backend/`, `frontend/`, `docker-compose.yml`, `k8s/`, `helm/`, `terraform/`, `monitoring/`). Until 16 October the same files lived in `application/backend`, `application/frontend`, `docker/` and `kubernetes/`, so transcripts recorded before then show those paths.
+
 ## Application setup
 
 **Backend (no Docker needed).** Without `DATABASE_URL` the app uses a local SQLite file. With Docker or Kubernetes it gets a PostgreSQL URL.
 
 ```bash
-cd final-devops-project/application/backend
+cd final-devops-project/backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 alembic upgrade head                      # creates the expenses table (migration 0001)
@@ -189,11 +190,11 @@ uvicorn app.main:app --reload --port 8000 # http://localhost:8000/docs for the O
 **Frontend.** In dev mode Vite proxies `/api` to the backend on port 8000:
 
 ```bash
-cd final-devops-project/application/frontend
+cd final-devops-project/frontend
 npm ci && npm run dev                     # http://localhost:5173
 ```
 
-**Tests.** [tests/conftest.py](application/backend/tests/conftest.py) replaces the `get_db` dependency with an in-memory SQLite database (`StaticPool`) and recreates the tables for every test, so tests never touch a real database. [pytest.ini](application/backend/pytest.ini) sets the test path and the `pythonpath`.
+**Tests.** [tests/conftest.py](backend/tests/conftest.py) replaces the `get_db` dependency with an in-memory SQLite database (`StaticPool`) and recreates the tables for every test, so tests never touch a real database. [pytest.ini](backend/pytest.ini) sets the test path and the `pythonpath`.
 
 ```bash
 ruff check . && pytest -v --cov=app --cov-report=term-missing
@@ -214,14 +215,14 @@ The 9 tests cover:
 
 | File | What it does |
 | --- | --- |
-| [docker/backend.Dockerfile](docker/backend.Dockerfile) | `python:3.13-alpine`. Installs the pinned requirements, then **removes pip** (it bundles libraries that image scanners flag), creates user `spendwise` (uid 10001) and runs as it. The entrypoint [entrypoint.sh](application/backend/entrypoint.sh) runs `alembic upgrade head`, then Uvicorn. Has a `HEALTHCHECK` on `/health` |
-| [docker/frontend.Dockerfile](docker/frontend.Dockerfile) | **Multi-stage.** Stage 1 `node:24-alpine` runs `npm ci && npm run build`. Stage 2 `nginx-unprivileged:1.30-alpine` (uid 101, port 8080) serves `dist/`. The [nginx template](docker/nginx.conf.template) proxies `/api/` to `${BACKEND_HOST}:${BACKEND_PORT}`, adds `/healthz`, and falls back to `index.html` for the SPA |
-| [docker/docker-compose.yml](docker/docker-compose.yml) | `postgres` (healthcheck with `pg_isready`, named volume), `backend` (waits for a healthy database), `frontend` on `localhost:3000`. The DB password comes from `docker/.env` (git-ignored, see [.env.example](docker/.env.example)). Compose stops with an error if it is missing |
+| [backend/Dockerfile](backend/Dockerfile) | `python:3.13-alpine`. Installs the pinned requirements, then **removes pip** (it bundles libraries that image scanners flag), creates user `spendwise` (uid 10001) and runs as it. The entrypoint [entrypoint.sh](backend/entrypoint.sh) runs `alembic upgrade head`, then Uvicorn. Has a `HEALTHCHECK` on `/health` |
+| [frontend/Dockerfile](frontend/Dockerfile) | **Multi-stage.** Stage 1 `node:24-alpine` runs `npm ci && npm run build`. Stage 2 `nginx-unprivileged:1.30-alpine` (uid 101, port 8080) serves `dist/`. The [nginx template](frontend/nginx.conf.template) proxies `/api/` to `${BACKEND_HOST}:${BACKEND_PORT}`, adds `/healthz`, and falls back to `index.html` for the SPA |
+| [docker-compose.yml](docker-compose.yml) | `postgres` (healthcheck with `pg_isready`, named volume), `backend` (waits for a healthy database), `frontend` on `localhost:3000`. The DB password comes from `.env` (git-ignored, see [.env.example](.env.example)). Compose stops with an error if it is missing |
 
-Both images use the project folder as build context. [.dockerignore](.dockerignore) keeps only `application/` and `docker/` in it.
+Each image uses its own folder as build context (`backend/`, `frontend/`). The [backend](backend/.dockerignore) and [frontend](frontend/.dockerignore) `.dockerignore` files keep tests, caches, `node_modules/` and `dist/` out of it.
 
 ```bash
-cd final-devops-project/docker
+cd final-devops-project
 cp .env.example .env && sed -i '' "s/change-me/$(openssl rand -hex 16)/" .env   # macOS sed; use sed -i on Linux
 docker compose up --build --detach
 docker compose ps
@@ -245,13 +246,13 @@ The cluster is Minikube (Kubernetes v1.37, containerd, 4 CPUs) with the `ingress
 
 | Object | Name | Notes |
 | --- | --- | --- |
-| Namespace | `spendwise` | [kubernetes/namespace.yaml](kubernetes/namespace.yaml) |
+| Namespace | `spendwise` | [k8s/namespace.yaml](k8s/namespace.yaml) |
 | Deployment | `spendwise-backend` | FastAPI. The HPA owns the replica count (2–5). Init container `wait-for-db` runs `pg_isready` until PostgreSQL answers. Readiness, liveness and startup probes on `/health`. Hardened `securityContext` |
 | Deployment | `spendwise-frontend` | 2 replicas of nginx-unprivileged. Read-only root filesystem with `emptyDir` mounts for `/etc/nginx/conf.d` and `/tmp`. Probes on `/healthz` |
 | StatefulSet | `spendwise-postgres` | PostgreSQL 17 as uid/gid 70 with a read-only root filesystem (`emptyDir` for its socket dir and `/tmp`), all capabilities dropped and `RuntimeDefault` seccomp. `volumeClaimTemplates` → PVC `data-spendwise-postgres-0` (1 Gi, `standard` StorageClass). `pg_isready` probes |
 | Service (ClusterIP) | `spendwise-backend` :8000, `spendwise-frontend` :80 → 8080 | `spendwise-postgres` is headless (`clusterIP: None`) for the StatefulSet |
 | ConfigMap | `spendwise-config` | Non-secret settings: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, plus `BACKEND_HOST`/`BACKEND_PORT` for the frontend's nginx proxy |
-| Secret | `spendwise-db` | Database password, created at deploy time by [create-db-secret.sh](kubernetes/create-db-secret.sh) with `openssl rand`. Never stored in Git. `DATABASE_URL` is assembled in the Pod from env vars, using the password from `secretKeyRef` |
+| Secret | `spendwise-db` | Database password, created at deploy time by [create-db-secret.sh](k8s/create-db-secret.sh) with `openssl rand`. Never stored in Git. `DATABASE_URL` is assembled in the Pod from env vars, using the password from `secretKeyRef` |
 | Ingress | `spendwise` (class `nginx`) | Host `spendwise.local`: `/api` → backend, `/` → frontend |
 | HorizontalPodAutoscaler | `spendwise-backend` | 2–5 replicas at 70% CPU (3 at most in the Minikube values files). It needs CPU requests, see fault 5 |
 | PodDisruptionBudget | backend and frontend | `minAvailable: 1` during node drains |
@@ -259,14 +260,14 @@ The cluster is Minikube (Kubernetes v1.37, containerd, 4 CPUs) with the `ingress
 
 ```bash
 minikube start --cpus 4 --memory 3500 --addons ingress,metrics-server
-docker compose -f docker/docker-compose.yml build     # build with the host Docker...
+docker compose build                                  # build with the host Docker...
 minikube image load spendwise-backend:local           # ...then copy the images into Minikube
 minikube image load spendwise-frontend:local
-kubectl apply -f kubernetes/namespace.yaml
-bash kubernetes/create-db-secret.sh spendwise
+kubectl apply -f k8s/namespace.yaml
+bash k8s/create-db-secret.sh spendwise
 ```
 
-[kubernetes/spendwise-rendered.yaml](kubernetes/spendwise-rendered.yaml) contains the plain manifests that the chart produces ([render.sh](kubernetes/render.sh)), so you can review them, or apply them with `kubectl` without Helm.
+[k8s/spendwise-rendered.yaml](k8s/spendwise-rendered.yaml) contains the plain manifests that the chart produces ([render.sh](k8s/render.sh)), so you can review them, or apply them with `kubectl` without Helm.
 
 All Pods are Running with two replicas each of backend and frontend. Both Services are ClusterIP, and the Ingress has the two paths. (The 2 restarts on the very first install were a real startup race, fixed with the init container; see [Troubleshooting](#real-issues-found-while-building).)
 
@@ -309,7 +310,7 @@ The image helper in [_helpers.tpl](helm/spendwise/templates/_helpers.tpl) uses `
 
 ## Terraform infrastructure
 
-[terraform/](terraform/) provisions the AWS side in `ap-south-1` (Mumbai):
+[terraform/](terraform/) provisions the AWS side in `ap-southeast-2` (Sydney). The region is a variable; see [Recorded run on AWS](#recorded-run-on-aws) for why it is Sydney.
 
 | File | Resources |
 | --- | --- |
@@ -330,7 +331,7 @@ terraform init
 terraform fmt -check && terraform validate
 terraform plan -out tfplan            # review everything that will be created
 terraform apply tfplan                # about 10-15 minutes, most of it the EKS control plane
-aws eks update-kubeconfig --region ap-south-1 --name spendwise-eks
+aws eks update-kubeconfig --region ap-southeast-2 --name spendwise-eks
 kubectl get nodes                     # the managed node group's t3.small node is Ready
 terraform destroy                     # always, straight after the demo
 ```
@@ -352,11 +353,31 @@ terraform destroy                     # always, straight after the demo
 
 ![terraform init, fmt, validate and dependency graph](screenshots/20-terraform-validate-graph.png)
 
-`plan`, `apply` and `destroy` call AWS and need credentials (`aws login` or `aws configure`, region `ap-south-1`). With the defaults, the plan creates **18 resources**: VPC, IGW, 2 subnets, route table, 2 associations, 2 IAM roles, 4 policy attachments, the KMS key, its alias and the cluster's KMS policy, EKS cluster and node group. To show the result:
+### Recorded run on AWS
 
-- `aws eks update-kubeconfig …` then `kubectl get nodes` lists the `t3.small` worker.
-- In the AWS Console (region Mumbai), open **VPC → Your VPCs** for `spendwise-eks-vpc` with its two public subnets, and **EKS → Clusters** for `spendwise-eks` with node group `spendwise-eks-nodes`.
-- `terraform destroy` must end with `Destroy complete! Resources: 18 destroyed.`
+The whole life cycle ran against a real AWS account ([evidence/14-terraform-aws-eks.txt](evidence/14-terraform-aws-eks.txt)), with credentials from `aws configure` (an IAM user's access key, never written into any file in this repository). The account is on the AWS **Free plan**, whose organization policy allows only one region, Sydney (`ap-southeast-2`). An apply in Mumbai was refused with *explicit deny in a service control policy*, as recorded in [Session 18](../session18-terraform-iac/terraform-s3-demo/README.md#run-it-on-aws-recorded). The transcript replaces the 12-digit account ID with `<account-id>` and my IP with `<my-ip>`.
+
+| Step | Result |
+| --- | --- |
+| `terraform plan -out eks.tfplan` | `Plan: 18 to add, 0 to change, 0 to destroy.`: VPC, IGW, 2 subnets, route table, 2 associations, 2 IAM roles, 4 policy attachments, KMS key, alias, the cluster's KMS policy, EKS cluster, node group |
+| `terraform apply eks.tfplan` | `Apply complete! Resources: 18 added, 0 changed, 0 destroyed.` in **12 min 3 s**: network, IAM and KMS in under 30 s, the EKS control plane 10 min 3 s, the node group 1 min 34 s |
+| `terraform output` | `cluster_version = "1.36"`, `node_group_status = "ACTIVE"`, subnets in `ap-southeast-2a` and `ap-southeast-2b`, the `update-kubeconfig` command |
+| `kubectl get nodes -o wide` | One `t3.small` node **Ready**, Kubernetes v1.36.4, Amazon Linux 2023, IP from 10.21.2.0/24. The kubeconfig went to a separate git-ignored file, so the Minikube context stayed untouched |
+| `kubectl get pods -n kube-system` | `aws-node` (VPC CNI), `kube-proxy` and 2 × `coredns` Running |
+| `aws eks describe-cluster` | `ACTIVE`, private endpoint `true`, public endpoint limited to `<my-ip>/32`, `secrets` encrypted with the KMS key: the settings the [IaC scan](#infrastructure-as-code-scan) asked for |
+| `aws eks describe-nodegroup` | `ACTIVE`, `t3.small`, `ON_DEMAND`, min 1 / desired 1 / max 2 |
+| `aws ec2 describe-subnets` | `spendwise-eks-public-1` 10.21.1.0/24 in 2a and `spendwise-eks-public-2` 10.21.2.0/24 in 2b, both with public IPs on launch |
+| Test workload | `kubectl create deployment hello` (nginx from ECR Public, 2 replicas) rolled out; both Pods ran on the node with VPC IPs (10.21.2.x), then the Deployment was deleted |
+| `terraform destroy -auto-approve` | `Destroy complete! Resources: 18 destroyed.` in **11 min 38 s**. The node group went first (8 min 22 s), then the cluster (2 min 44 s); the Internet Gateway waited 6 min 34 s for the cluster's network interfaces to go. Afterwards the state is empty, `describe-cluster` returns `ResourceNotFoundException`, the VPC returns `InvalidVpcID.NotFound`, the node instance is `terminated`, and the KMS key is `PendingDeletion` (7-day window) |
+| Final check | 0 EKS clusters, 0 instances, 0 non-default VPCs, 0 Elastic IPs and 0 S3 buckets left in the region (the Session 18 and 19 stacks were destroyed the same day) |
+
+![terraform init, validate, plan (18 resources) and apply on AWS](screenshots/27-eks-plan-apply.png)
+
+![terraform output, kubectl get nodes and kube-system Pods on EKS](screenshots/28-eks-outputs-kubectl.png)
+
+![EKS endpoint and encryption settings, node group, subnets and a test workload](screenshots/29-eks-verify-settings.png)
+
+![terraform destroy and proof that nothing is left](screenshots/30-eks-destroy.png)
 
 ## CI/CD pipeline
 
@@ -424,10 +445,10 @@ Every run is listed under [Actions → "Final project · SpendWise CI/CD"](https
 
 | Practice | Tool | Job | Gate | Configuration |
 | --- | --- | --- | --- | --- |
-| SAST (Python) | Bandit 1.9.4 | `sast` | Fails on medium or high severity | `[tool.bandit]` in [pyproject.toml](application/backend/pyproject.toml) |
-| SAST (Python + JavaScript) | GitHub CodeQL | `sast` | Results in the repo's Security → Code scanning tab | `build-mode: none`, source root `application/` |
-| SCA (Python) | pip-audit 2.10.1 | `sca` | Any known vulnerability (`--strict`) | [requirements.txt](application/backend/requirements.txt) (all pinned) |
-| SCA (npm) | npm audit | `sca` | High or critical | [package-lock.json](application/frontend/package-lock.json) |
+| SAST (Python) | Bandit 1.9.4 | `sast` | Fails on medium or high severity | `[tool.bandit]` in [pyproject.toml](backend/pyproject.toml) |
+| SAST (Python + JavaScript) | GitHub CodeQL | `sast` | Results in the repo's Security → Code scanning tab | `build-mode: none`, source root `final-devops-project/` |
+| SCA (Python) | pip-audit 2.10.1 | `sca` | Any known vulnerability (`--strict`) | [requirements.txt](backend/requirements.txt) (all pinned) |
+| SCA (npm) | npm audit | `sca` | High or critical | [package-lock.json](frontend/package-lock.json) |
 | SCA (lock files) | Trivy 0.74 `fs` | `sca` | Fixable HIGH/CRITICAL | [security/trivy.yaml](security/trivy.yaml) |
 | Secret scanning | Gitleaks 8.30.1 | `secret-scan` | Any finding | [security/gitleaks.toml](security/gitleaks.toml) (default rules + allowlist for evidence/screenshots/lock files) |
 | Container image scanning | Trivy 0.74 `image` | `build-images` (both images) | Fixable HIGH/CRITICAL | [security/trivy.yaml](security/trivy.yaml): `severity: [HIGH, CRITICAL]`, `exit-code: 1`, `ignore-unfixed: true` |
@@ -468,7 +489,7 @@ The remaining LOW/MEDIUM items are known and accepted:
 
 ![Bandit, pip-audit, npm audit, Trivy fs and Gitleaks](screenshots/08-devsecops-scans.png)
 
-Gitleaks found one real secret on disk: `docker/.env` (the random Compose DB password). That file is git-ignored and never reaches GitHub. A scan of exactly what Git would publish is clean, which is what CI sees on a fresh checkout.
+Gitleaks found one real secret on disk: the Compose `.env` file (the random DB password, then at `docker/.env`). That file is git-ignored and never reaches GitHub. A scan of exactly what Git would publish is clean, which is what CI sees on a fresh checkout.
 
 ![Trivy image scans of both images: 0 HIGH/CRITICAL](screenshots/09-trivy-image-scan.png)
 
@@ -499,7 +520,7 @@ kubectl apply -f monitoring/traffic-generator.yaml     # synthetic users so the 
 
 | Signal | How it is collected | Where to see it |
 | --- | --- | --- |
-| **Application metrics** | [app/metrics.py](application/backend/app/metrics.py): `spendwise_http_requests_total{method,route,status}`, `spendwise_http_request_duration_seconds` (histogram), `spendwise_expenses_created_total{category}`. The route label is the route *template*, so cardinality stays bounded | `GET /metrics` on the backend, scraped by Prometheus |
+| **Application metrics** | [app/metrics.py](backend/app/metrics.py): `spendwise_http_requests_total{method,route,status}`, `spendwise_http_request_duration_seconds` (histogram), `spendwise_expenses_created_total{category}`. The route label is the route *template*, so cardinality stays bounded | `GET /metrics` on the backend, scraped by Prometheus |
 | **Scraping** | The chart's [ServiceMonitor](helm/spendwise/templates/servicemonitor.yaml) selects the backend Service, port `http`, path `/metrics`, every 15 s | Prometheus → Status → Target health |
 | **Alerts** | [PrometheusRule](helm/spendwise/templates/prometheusrule.yaml): `SpendWiseHighErrorRate` (> 5% 5xx for 2 m), `SpendWiseBackendDown` (no backend target up for 1 m), `SpendWiseSlowRequests` (p95 > 500 ms for 5 m) | Prometheus → Alerts, Alertmanager |
 | **Dashboards** | [files/grafana-dashboard.json](helm/spendwise/files/grafana-dashboard.json) shipped as a ConfigMap labelled `grafana_dashboard: "1"`. Grafana's sidecar loads it automatically. 12 panels: requests/s, 5xx error rate, p95 latency, expenses created, backend Pods up, HPA replicas, then time series by route, p50/p95 latency, expenses by category, CPU and memory per Pod, status codes | Grafana → "SpendWise - Application Overview" |
@@ -577,7 +598,7 @@ kubectl apply -f gitops/argocd-application.yaml
 kubectl -n argocd get applications.argoproj.io spendwise -w
 ```
 
-The database Secret stays outside Git: it is created once per cluster by `kubernetes/create-db-secret.sh`. With Sealed Secrets or the External Secrets Operator it could also live in Git, in encrypted form. When the manual release is uninstalled, the StatefulSet's PVC is kept, so the Argo CD-managed PostgreSQL starts with all existing data.
+The database Secret stays outside Git: it is created once per cluster by `k8s/create-db-secret.sh`. With Sealed Secrets or the External Secrets Operator it could also live in Git, in encrypted form. When the manual release is uninstalled, the StatefulSet's PVC is kept, so the Argo CD-managed PostgreSQL starts with all existing data.
 
 ### GitOps handover (recorded)
 
@@ -603,7 +624,7 @@ One commit, and everything after it is automatic. This was recorded on the new r
 
 | Step | What happened | When (UTC) |
 | --- | --- | --- |
-| 1. Developer | Commit [`c0d8406`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/c0d8406) *"SpendWise: new subtitle (live GitOps demo)"*: one line in [App.jsx](application/frontend/src/App.jsx), committed on its own, then `git push` | 01:53:10 |
+| 1. Developer | Commit [`c0d8406`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/c0d8406) *"SpendWise: new subtitle (live GitOps demo)"*: one line in [App.jsx](frontend/src/App.jsx), committed on its own, then `git push` | 01:53:10 |
 | 2. CI | [Run 38837520932](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38837520932): all 12 jobs green (tests, SAST + IaC scan, SCA, secrets, images + Trivy, gate, GHCR push, kind deploy, GitOps update) in 5 min 26 s. Images pushed as `…/spendwise-*:c0d8406c817d` | 01:53:15 → 01:58:41 |
 | 3. GitOps commit | `github-actions[bot]` committed [`60ac555`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/60ac555) *"gitops: deploy spendwise c0d8406c817d"*, changing only the two image tags | 01:58:37 |
 | 4. Argo CD | Detected `60ac555` and rolled out the new Pods one by one (0 restarts). **Synced + Healthy 72 s** after the commit appeared | applied 01:59:31 |
@@ -617,7 +638,7 @@ One commit, and everything after it is automatic. This was recorded on the new r
 
 **To repeat it live during the presentation:**
 
-1. Change something visible, for example the subtitle in [App.jsx](application/frontend/src/App.jsx), then commit and push.
+1. Change something visible, for example the subtitle in [App.jsx](frontend/src/App.jsx), then commit and push.
 2. Open the run on the **Actions** tab and wait for the pipeline.
 3. Run `git pull` to see the bot's tag commit.
 4. Watch Argo CD's UI or `kubectl -n spendwise get pods -w`.
@@ -675,7 +696,7 @@ These were not planted. They came up while building and running the project, and
 | Unbounded list endpoint | HPA pinned at `maxReplicas` (5) under synthetic traffic | `GET /api/expenses` returned **every** row, so each call grew with the table (368 rows, 38 KB) | `limit` parameter (default 100, max 500) + a test. Handling time 0.082 → 0.037 s/s, CPU about 167m → 74m | [08-real-issue-unbounded-list.txt](evidence/08-real-issue-unbounded-list.txt), [before](screenshots/18-real-issue-unbounded-list.png), [after](screenshots/19-real-issue-fix-verified.png) |
 | A masked fault | An injected Ingress *path* fault (`/apis`) did **not** break the app | The frontend's nginx also proxies `/api/` to the backend, so misrouted calls still worked through one extra hop | Kept as a finding and replaced by the host-typo fault (#2) | [07-troubleshooting-extra-masked-path.txt](evidence/07-troubleshooting-extra-masked-path.txt), [screenshot](screenshots/17-extra-masked-ingress-path.png) |
 | Grafana "No data" | The 5xx error-rate stat was empty while there were no errors | `rate(…{status=~"5.."})` returns *no series*, not 0, when nothing has failed | `… or vector(0)` in the panel query | [files/grafana-dashboard.json](helm/spendwise/files/grafana-dashboard.json) |
-| Gitleaks finding on disk | The local secret scan found 1 leak | `docker/.env` (the random Compose password) is a real secret, but it is git-ignored | Scan exactly what Git publishes: clean. CI scans a fresh checkout | [06-devsecops-local.txt](evidence/06-devsecops-local.txt) |
+| Gitleaks finding on disk | The local secret scan found 1 leak | The Compose `.env` file (the random DB password, then at `docker/.env`) is a real secret, but it is git-ignored | Scan exactly what Git publishes: clean. CI scans a fresh checkout | [06-devsecops-local.txt](evidence/06-devsecops-local.txt) |
 | CI deploy failed only on GitHub | `helm test` failed in the kind job, but not on my laptop | `hook-delete-policy: hook-succeeded` deleted the test Pod before the runner's Helm read its logs (`--logs`) | Keep the test Pod (`before-hook-creation`) and publish Pod states and events as a public annotation when the deploy fails | [Pipeline runs on GitHub](#pipeline-runs-on-github) |
 | Restart storm on Minikube | After Argo CD was added the node hit 96% CPU pressure and about 98% memory. Probes timed out and backends restarted in a loop, and each restart (migrations + start-up) added more load | Default 1 s probe timeouts, plus too many Pods for a 3.4 GB node (HPA up to 5, Argo CD, the full monitoring stack) | Lenient liveness (5 s timeout, 6 failures) and readiness (3 s) probes, `maxReplicas: 3` in the Minikube values files, extras paused during the demo. The next GitOps rollout replaced every Pod with **0 restarts** | [chart templates](helm/spendwise/templates/backend.yaml), [values-gitops.yaml](helm/spendwise/values-gitops.yaml) |
 | Laptop sleep | After the Mac slept with the lid closed, probes timed out and Pods restarted; metrics-server briefly had no data (HPA `<unknown>`) | The Minikube VM freezes while macOS sleeps, then everything catches up at once | Keep the lid open and use `caffeinate` during demos. `minikube stop/start` cleared the backlog | Fault 5 note |
@@ -703,6 +724,7 @@ These were not planted. They came up while building and running the project, and
 | 21 | [17-extra-masked-ingress-path.png](screenshots/17-extra-masked-ingress-path.png) | The masked fault |
 | 22 | [18](screenshots/18-real-issue-unbounded-list.png) · [19](screenshots/19-real-issue-fix-verified.png) | Real issue: unbounded list endpoint, before and after |
 | 23 | [20-terraform-validate-graph.png](screenshots/20-terraform-validate-graph.png) | Terraform init/fmt/validate and dependency graph (M7) |
+| 23b | [27](screenshots/27-eks-plan-apply.png) · [28](screenshots/28-eks-outputs-kubectl.png) · [29](screenshots/29-eks-verify-settings.png) · [30](screenshots/30-eks-destroy.png) | Terraform on AWS: plan and apply (18 resources), `kubectl` on EKS, cluster checks, destroy (M7) |
 | 24 | [browser-11-github-actions-run.png](screenshots/browser-11-github-actions-run.png) | Green GitHub Actions run, all 12 jobs (M5) |
 | 25 | [browser-12-ghcr-tags.png](screenshots/browser-12-ghcr-tags.png) | GHCR images tagged with commit SHAs (M5) |
 | 26 | [browser-15-github-trivy-annotations.png](screenshots/browser-15-github-trivy-annotations.png) | Trivy results of both images, published by the pipeline (M6) |
@@ -733,6 +755,6 @@ helm uninstall spendwise -n spendwise && kubectl delete namespace spendwise   # 
 helm uninstall kps -n monitoring && kubectl delete namespace monitoring
 helm uninstall argocd -n argocd && kubectl delete namespace argocd
 cd terraform && terraform destroy                                            # never leave EKS running
-docker compose -f docker/docker-compose.yml down --volumes
+docker compose down --volumes
 minikube stop
 ```
