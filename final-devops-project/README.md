@@ -2,7 +2,7 @@
 
 **Course:** SST DevOps & Cloud · **Session 21** · **Author:** Abhinav (24BCS10282)
 
-[![Final project CI/CD](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/final-devops-project.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/final-devops-project.yml)
+[![Final project CI/CD](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/final-devops-project.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/final-devops-project.yml)
 
 SpendWise is a small expense tracker for students. You add what you spend (mess fees, books, travel…) and see totals by category. It is my own application, written for this project:
 
@@ -57,7 +57,7 @@ The [Makefile](Makefile) wraps every command used below. [DEMO.md](DEMO.md) is t
 | --- | --- | --- |
 | M1 Application | FastAPI `/health`, ≥ 4 REST endpoints (GET/POST/PUT/DELETE), PostgreSQL table managed by Alembic, React UI | [application/backend/app/main.py](application/backend/app/main.py), [alembic/versions/0001_create_expenses.py](application/backend/alembic/versions/0001_create_expenses.py), [application/frontend/src/App.jsx](application/frontend/src/App.jsx) · [screenshot](screenshots/browser-01-compose-app.png) |
 | M2 Testing | pytest passes, ≥ 5 tests over ≥ 3 endpoints, test DB, `pytest.ini` / `conftest.py` | [tests/test_expenses.py](application/backend/tests/test_expenses.py) (9 tests, 97% coverage), [tests/conftest.py](application/backend/tests/conftest.py) (SQLite test DB), [pytest.ini](application/backend/pytest.ini) · [screenshot](screenshots/02-tests.png) |
-| M3 Git & GitHub | Public repo, meaningful commits, `.gitignore` | [github.com/Abhinavsuri90/DevOps-Coursework](https://github.com/Abhinavsuri90/DevOps-Coursework), [.gitignore](.gitignore) (`.env`, `__pycache__/`, `node_modules/`, `.venv/`, state files) · [commit history](screenshots/browser-13-github-commits.png) |
+| M3 Git & GitHub | Public repo, meaningful commits, `.gitignore` | [github.com/Abhinavsuri90/DevOps-Coursework-final](https://github.com/Abhinavsuri90/DevOps-Coursework-final), [.gitignore](.gitignore) (`.env`, `__pycache__/`, `node_modules/`, `.venv/`, state files) · [commit history](screenshots/browser-13-github-commits.png) |
 | M4 Docker | Backend Dockerfile, multi-stage frontend Dockerfile, non-root, `docker compose up --build` | [docker/backend.Dockerfile](docker/backend.Dockerfile), [docker/frontend.Dockerfile](docker/frontend.Dockerfile), [docker/docker-compose.yml](docker/docker-compose.yml) · [screenshot](screenshots/01-docker-compose.png) |
 | M5 CI/CD | Workflow on push to `main`, pytest gate, frontend build, both images built, pushed to GHCR with SHA tags | [.github/workflows/final-devops-project.yml](../.github/workflows/final-devops-project.yml) (copy in [.github/workflows/](.github/workflows/)) · [green run](screenshots/browser-11-github-actions-run.png) · [GHCR SHA tags](screenshots/browser-12-ghcr-tags.png) |
 | M6 DevSecOps | Trivy on both images, fails on HIGH/CRITICAL, explanation | `build-images` job + [security/trivy.yaml](security/trivy.yaml) · [Trivy results from CI](screenshots/browser-15-github-trivy-annotations.png) · [explanation](#devsecops-implementation) |
@@ -107,7 +107,7 @@ flowchart LR
       KIND --> BUMP[commit new tag to<br/>values-gitops.yaml]
     end
 
-    PUSH --> GHCR[(ghcr.io/abhinavsuri90/<br/>spendwise-backend / -frontend)]
+    PUSH --> GHCR[(ghcr.io/abhinavsuri90/<br/>devops-coursework-final/<br/>spendwise-backend / -frontend)]
     BUMP --> Repo
 
     subgraph K8s["Kubernetes cluster (Minikube locally; EKS on AWS)"]
@@ -391,7 +391,7 @@ flowchart LR
 | `sast` / `sca` / `secret-scan` | Security stages, see [DevSecOps](#devsecops-implementation) | A finding above the threshold |
 | `build-images` (matrix: backend, frontend) | `docker build` with `APP_VERSION=<sha>`, **Trivy image scan**, the Trivy result published as a run annotation, image saved as an artifact | The build fails or there is a fixable HIGH/CRITICAL CVE |
 | `security-gate` | Runs with `if: always()`, writes a summary table, and requires every security job to be `success` | Any security job failed, was skipped or was cancelled |
-| `push-images` (matrix) | `main` only. Loads the scanned image, tags it `ghcr.io/abhinavsuri90/spendwise-<component>:<12-char sha>`, pushes with `GITHUB_TOKEN` (`packages: write`) | The push fails |
+| `push-images` (matrix) | `main` only. Loads the scanned image, tags it `ghcr.io/abhinavsuri90/devops-coursework-final/spendwise-<component>:<12-char sha>`, pushes with `GITHUB_TOKEN` (`packages: write`) | The push fails |
 | `deploy` | Creates a **kind** cluster, installs ingress-nginx, creates the DB Secret and a GHCR pull Secret, then runs `helm upgrade --install` with the SHA tags, `helm test`, and a smoke test **through the Ingress** (`/`, a POST to `/api/expenses`, `/api/summary`). If anything fails, a diagnostics step publishes Pod states and warning events | The rollout, `helm test`, or the smoke test fails |
 | `gitops-update` | `main` only. `yq` writes the new tag into `values-gitops.yaml`, then commits `gitops: deploy spendwise <sha>` and pushes (with retry and rebase) | The push fails |
 
@@ -399,13 +399,13 @@ Images are tagged only with the **commit SHA**, never `latest`, so every running
 
 ### Pipeline runs on GitHub
 
-Every run is listed under [Actions → "Final project · SpendWise CI/CD"](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/final-devops-project.yml).
+Every run is listed under [Actions → "Final project · SpendWise CI/CD"](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/final-devops-project.yml).
 
-**A green run.** [Run 38690443409](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/runs/38690443409), on commit `73177c1`, passed all 12 jobs in 5 min 49 s:
+**A green run.** [Run 38690443409](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38690443409), on commit `73177c1`, passed all 12 jobs in 5 min 49 s:
 
 ![Green pipeline run on GitHub Actions](screenshots/browser-11-github-actions-run.png)
 
-**Images in GHCR.** They are tagged with the 12-character commit SHA, never `latest` (`ghcr.io/abhinavsuri90/spendwise-backend` and `-frontend`):
+**Images in GHCR.** They are tagged with the 12-character commit SHA, never `latest` (`ghcr.io/abhinavsuri90/devops-coursework-final/spendwise-backend` and `-frontend`):
 
 ![GHCR spendwise-backend versions tagged with commit SHAs](screenshots/browser-12-ghcr-tags.png)
 
@@ -568,7 +568,7 @@ sequenceDiagram
 | File | Purpose |
 | --- | --- |
 | [gitops/argocd-values.yaml](gitops/argocd-values.yaml) | Small Argo CD install for Minikube: no Dex, notifications or ApplicationSet controller, Git polled every 60 s, read-only anonymous UI for screenshots |
-| [gitops/argocd-application.yaml](gitops/argocd-application.yaml) | `Application` **spendwise**: repo `Abhinavsuri90/DevOps-Coursework`, branch `main`, path `final-devops-project/helm/spendwise`, value file `values-gitops.yaml`, destination namespace `spendwise`. `automated` sync with **prune** and **selfHeal**, plus a retry back-off |
+| [gitops/argocd-application.yaml](gitops/argocd-application.yaml) | `Application` **spendwise**: repo `Abhinavsuri90/DevOps-Coursework-final`, branch `main`, path `final-devops-project/helm/spendwise`, value file `values-gitops.yaml`, destination namespace `spendwise`. `automated` sync with **prune** and **selfHeal**, plus a retry back-off |
 | [helm/spendwise/values-gitops.yaml](helm/spendwise/values-gitops.yaml) | The only file CI changes: `backend.image.tag` and `frontend.image.tag` |
 
 ```bash
@@ -601,9 +601,9 @@ One commit, and everything after it is automatic ([evidence/11-m10-commit-to-dep
 
 | Step | What happened | When (UTC) |
 | --- | --- | --- |
-| 1. Developer | Commit [`27f4cae`](https://github.com/Abhinavsuri90/DevOps-Coursework/commit/27f4cae) *"SpendWise: show the running version (commit SHA) in the footer"* (backend `GET /api/version` + a test, React footer), then `git push` | 06:20:45 |
-| 2. CI | [Run 38691857530](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/runs/38691857530): all 12 jobs green in 5 min 18 s, images pushed as `spendwise-*:27f4caee152f` | 06:20:49 → 06:26:07 |
-| 3. GitOps commit | `github-actions[bot]` committed [`74396f1`](https://github.com/Abhinavsuri90/DevOps-Coursework/commit/74396f1) *"gitops: deploy spendwise 27f4caee152f"*, changing only the two image tags | 06:26:03 |
+| 1. Developer | Commit [`27f4cae`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/27f4cae) *"SpendWise: show the running version (commit SHA) in the footer"* (backend `GET /api/version` + a test, React footer), then `git push` | 06:20:45 |
+| 2. CI | [Run 38691857530](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38691857530): all 12 jobs green in 5 min 18 s, images pushed as `spendwise-*:27f4caee152f` | 06:20:49 → 06:26:07 |
+| 3. GitOps commit | `github-actions[bot]` committed [`74396f1`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/74396f1) *"gitops: deploy spendwise 27f4caee152f"*, changing only the two image tags | 06:26:03 |
 | 4. Argo CD | Detected `74396f1` and rolled out the new Pods (no restarts) | applied 06:27:16, Healthy 234 s after the commit appeared |
 | 5. Result | `GET /api/version` → `{"version":"27f4caee152f"}`, and the footer shows **version 27f4caee152f** | |
 

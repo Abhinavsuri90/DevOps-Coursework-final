@@ -242,8 +242,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Tag with the commit SHA and push
         run: |
-          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          image="ghcr.io/${owner}/spendwise-${{ matrix.component }}:${GITHUB_SHA::12}"
+          repo="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${repo}/spendwise-${{ matrix.component }}:${GITHUB_SHA::12}"
           docker load -i image-${{ matrix.component }}.tar.gz
           docker tag "spendwise-${{ matrix.component }}:${GITHUB_SHA}" "$image"
           docker push "$image"
@@ -279,11 +279,11 @@ jobs:
         working-directory: final-devops-project
         run: |
           helm version --short
-          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          repo="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           tag="${GITHUB_SHA::12}"
           helm upgrade --install spendwise helm/spendwise -n spendwise \
-            --set backend.image.repository="ghcr.io/${owner}/spendwise-backend" --set backend.image.tag="$tag" \
-            --set frontend.image.repository="ghcr.io/${owner}/spendwise-frontend" --set frontend.image.tag="$tag" \
+            --set backend.image.repository="ghcr.io/${repo}/spendwise-backend" --set backend.image.tag="$tag" \
+            --set frontend.image.repository="ghcr.io/${repo}/spendwise-frontend" --set frontend.image.tag="$tag" \
             --set 'imagePullSecrets[0].name=ghcr-pull' \
             --wait --timeout 6m
           kubectl get pods,svc,ingress,hpa,pvc -n spendwise

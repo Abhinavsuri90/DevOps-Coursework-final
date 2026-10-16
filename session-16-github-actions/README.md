@@ -2,7 +2,7 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav (24BCS10282)
 
-[![Session 16 CI](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-ci.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-ci.yml) [![Session 16 CD](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-cd.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-cd.yml)
+[![Session 16 CI](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session16-ci.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session16-ci.yml) [![Session 16 CD](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session16-cd.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session16-cd.yml)
 
 This is a CI/CD demo project for a small **GPA Calculator API** (Flask + Gunicorn), modelled on the course's `10-final-cicd-pipeline` example and taken further:
 
@@ -97,7 +97,7 @@ A pipeline is the automated path a commit takes from `git push` to a running rel
 
 - **Package build:** [build.sh](build.sh) creates `dist/gpa-calculator-<sha>.tar.gz` plus `build-info.txt` (version, commit, run ID, Python version). CI uploads it as the `gpa-calculator-build` artifact.
 - **Image build:** the `docker` job builds `gpa-calculator:<sha>` from [Dockerfile](Dockerfile) with `--build-arg APP_VERSION=<sha>`, starts it, waits for `/health`, and calls `/api/gpa`.
-- **Release build:** the CD `publish` job rebuilds the same commit (`workflow_run.head_sha`) with Buildx and pushes two tags: `ghcr.io/abhinavsuri90/gpa-calculator:<12-char sha>` (immutable, used for the deploy) and `:latest`.
+- **Release build:** the CD `publish` job rebuilds the same commit (`workflow_run.head_sha`) with Buildx and pushes two tags: `ghcr.io/abhinavsuri90/devops-coursework-final/gpa-calculator:<12-char sha>` (immutable, used for the deploy) and `:latest`.
 
 The Dockerfile installs dependencies before copying the source, which keeps the dependency layer cached. It also runs as `appuser` (uid 10001) and has a `HEALTHCHECK`, so `docker ps` shows the container as healthy or unhealthy.
 
@@ -128,16 +128,16 @@ The package build, Docker build, smoke test (including the `400` for an unknown 
 
 ### Pipeline runs on GitHub
 
-- **CI runs:** [Actions → "Session 16 · CI"](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-ci.yml). The job graph shows lint → test (3 Python versions) → build + docker, plus the secrets demo. Each run lists its artifacts (`test-report-py3.x`, `gpa-calculator-build`) at the bottom of the run page.
-- **CD runs:** [Actions → "Session 16 · CD"](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session16-cd.yml). It starts automatically when CI succeeds on `main`, and the summary shows the published image and the staging health check.
+- **CI runs:** [Actions → "Session 16 · CI"](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session16-ci.yml). The job graph shows lint → test (3 Python versions) → build + docker, plus the secrets demo. Each run lists its artifacts (`test-report-py3.x`, `gpa-calculator-build`) at the bottom of the run page.
+- **CD runs:** [Actions → "Session 16 · CD"](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session16-cd.yml). It starts automatically when CI succeeds on `main`, and the summary shows the published image and the staging health check.
 - **Image:** [GHCR packages](https://github.com/Abhinavsuri90?tab=packages): `gpa-calculator`, tagged with the commit SHA and `latest`.
 - **Deployments:** the repository's *Environments → staging* page lists each CD deployment.
 
-**CI run** ([run 38690443468](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/runs/38690443468)): lint → tests on Python 3.11, 3.12 and 3.13 → build artifact + Docker build and smoke test, plus the secrets demo. All jobs are green:
+**CI run** ([run 38690443468](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38690443468)): lint → tests on Python 3.11, 3.12 and 3.13 → build artifact + Docker build and smoke test, plus the secrets demo. All jobs are green:
 
 ![Session 16 CI run on GitHub](screenshots/04-github-ci-run.png)
 
-**CD run** ([run 38690551859](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/runs/38690551859)): started by `workflow_run` once that CI run succeeded. It published the image to GHCR and deployed it to `staging`:
+**CD run** ([run 38690551859](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38690551859)): started by `workflow_run` once that CI run succeeded. It published the image to GHCR and deployed it to `staging`:
 
 ![Session 16 CD run on GitHub](screenshots/05-github-cd-run.png)
 

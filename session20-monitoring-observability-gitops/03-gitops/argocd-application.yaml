@@ -7,7 +7,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Abhinavsuri90/DevOps-Coursework.git
+    repoURL: https://github.com/Abhinavsuri90/DevOps-Coursework-final.git
     targetRevision: main
     path: session20-monitoring-observability-gitops/03-gitops/app
   destination:

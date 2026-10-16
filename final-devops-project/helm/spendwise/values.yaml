@@ -3,7 +3,7 @@
 
 backend:
   image:
-    repository: ghcr.io/abhinavsuri90/spendwise-backend
+    repository: ghcr.io/abhinavsuri90/devops-coursework-final/spendwise-backend
     tag: ""            # set per environment (git SHA in CI/GitOps)
     pullPolicy: IfNotPresent
   replicaCount: 2
@@ -22,7 +22,7 @@ backend:
 
 frontend:
   image:
-    repository: ghcr.io/abhinavsuri90/spendwise-frontend
+    repository: ghcr.io/abhinavsuri90/devops-coursework-final/spendwise-frontend
     tag: ""
     pullPolicy: IfNotPresent
   replicaCount: 2

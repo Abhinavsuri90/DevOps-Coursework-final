@@ -16,7 +16,7 @@ Open these tabs:
 
 1. http://spendwise.local:18080 (needs `127.0.0.1 spendwise.local` in `/etc/hosts`)
 2. Argo CD: http://localhost:8081/applications/argocd/spendwise
-3. GitHub Actions: https://github.com/Abhinavsuri90/DevOps-Coursework/actions
+3. GitHub Actions: https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions
 4. This repository's `final-devops-project/README.md`
 
 ## The demo

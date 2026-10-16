@@ -2,7 +2,7 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav (24BCS10282)
 
-[![Session 17 DevSecOps](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session17-devsecops.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session17-devsecops.yml)
+[![Session 17 DevSecOps](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session17-devsecops.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session17-devsecops.yml)
 
 A **Campus Library API** (FastAPI: list, add, borrow and return books) goes through a CI/CD pipeline with security built into every stage. Every stage must pass, including a **security gate**, before the image is pushed to GitHub Container Registry and deployed to Kubernetes.
 
@@ -31,7 +31,7 @@ flowchart TB
     D --> I["7 · Container image scan\nTrivy, SARIF to code scanning"]
     I --> G{"8 · Security gate\nSAST, SCA, secrets, image\nall = success?"}
     G -->|no| X[Pipeline fails: nothing is pushed or deployed]
-    G -->|yes| P["9 · Push image\nghcr.io/abhinavsuri90/campus-library:&lt;sha&gt;"]
+    G -->|yes| P["9 · Push image\nghcr.io/abhinavsuri90/devops-coursework-final/campus-library:&lt;sha&gt;"]
     P --> Q["10 · Deploy to Kubernetes\nkind cluster, rollout, smoke test"]
 ```
 
@@ -118,12 +118,12 @@ The image placeholder `IMAGE_PLACEHOLDER` is replaced with the exact SHA-tagged 
 
 ## Pipeline runs on GitHub
 
-- **Runs:** [Actions → "Session 17 · DevSecOps"](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/workflows/session17-devsecops.yml). The job graph shows the ten numbered stages in order, and the **Security gate** job writes a pass/fail table into the run summary.
+- **Runs:** [Actions → "Session 17 · DevSecOps"](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/session17-devsecops.yml). The job graph shows the ten numbered stages in order, and the **Security gate** job writes a pass/fail table into the run summary.
 - **Code scanning:** CodeQL and the Trivy SARIF report appear under the repository's *Security → Code scanning* tab.
 - **Image:** [GHCR packages](https://github.com/Abhinavsuri90?tab=packages): `campus-library`, tagged with the commit SHA.
 - **Deploy:** the `10 · Deploy to Kubernetes (kind)` job log shows `kubectl get deploy,pods,svc` and the smoke-test responses, and its summary shows the deployed image and `/health`.
 
-A green run ([run 38690443396](https://github.com/Abhinavsuri90/DevOps-Coursework/actions/runs/38690443396)) passed all ten stages in order, from *1 · Build* to *10 · Deploy to Kubernetes (kind)*:
+A green run ([run 38690443396](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38690443396)) passed all ten stages in order, from *1 · Build* to *10 · Deploy to Kubernetes (kind)*:
 
 ![Session 17 DevSecOps run on GitHub](screenshots/07-github-devsecops-run.png)
 

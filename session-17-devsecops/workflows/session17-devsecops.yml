@@ -232,8 +232,8 @@ jobs:
       - name: Tag and push
         id: push
         run: |
-          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          image="ghcr.io/${owner}/campus-library:${GITHUB_SHA::12}"
+          repo="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${repo}/campus-library:${GITHUB_SHA::12}"
           docker load -i image.tar.gz
           docker tag "campus-library:${GITHUB_SHA}" "$image"
           docker push "$image"

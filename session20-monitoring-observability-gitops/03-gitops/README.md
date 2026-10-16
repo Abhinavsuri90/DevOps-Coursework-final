@@ -21,7 +21,7 @@ The OpenGitOps principles:
 - **Rollback = `git revert`:** the agent rolls the cluster back to the previous commit's state.
 - **Disaster recovery:** a new cluster plus the same Git repo rebuilds the same system.
 
-In this demo the desired state is [`app/`](app/) in **github.com/Abhinavsuri90/DevOps-Coursework**, and the Argo CD `Application` ([argocd-application.yaml](argocd-application.yaml)) points at that path on `main`.
+In this demo the desired state is [`app/`](app/) in **github.com/Abhinavsuri90/DevOps-Coursework-final**, and the Argo CD `Application` ([argocd-application.yaml](argocd-application.yaml)) points at that path on `main`.
 
 ## Declarative configuration
 
@@ -84,10 +84,10 @@ Argo CD v3.5.5 was installed on Minikube with [argocd-values.yaml](argocd-values
 | Step | What I did | What Argo CD did | Time |
 | --- | --- | --- | --- |
 | 1. Initial sync | `kubectl apply -f argocd-application.yaml` | Cloned `main`, created the namespace, ConfigMap, Deployment (2 replicas) and Service. **Synced + Healthy** | 32 s |
-| 2. Change through Git | Commit [`5d5e64c`](https://github.com/Abhinavsuri90/DevOps-Coursework/commit/5d5e64c): `replicas: 2 → 3`, page `version 1 → version 2`. **No kubectl** | Detected the new commit, applied it: 3/3 Pods, page served "GitOps demo - version 2" | 77 s |
+| 2. Change through Git | Commit [`5d5e64c`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/5d5e64c): `replicas: 2 → 3`, page `version 1 → version 2`. **No kubectl** | Detected the new commit, applied it: 3/3 Pods, page served "GitOps demo - version 2" | 77 s |
 | 3. Self-heal | `kubectl scale deployment gitops-web --replicas=1` (manual drift) | Saw the drift, status *OutOfSync*, and reset `replicas` to 3, because Git is the truth | 2 s |
-| 4. Prune, add | Commit [`81c5b8d`](https://github.com/Abhinavsuri90/DevOps-Coursework/commit/81c5b8d) adds `app/feature-flags.yaml` | Created ConfigMap `feature-flags` | 130 s |
-| 5. Prune, delete | Commit [`c7a29eb`](https://github.com/Abhinavsuri90/DevOps-Coursework/commit/c7a29eb) deletes the file | **Deleted** the ConfigMap from the cluster (`prune: true`) | 65 s |
+| 4. Prune, add | Commit [`81c5b8d`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/81c5b8d) adds `app/feature-flags.yaml` | Created ConfigMap `feature-flags` | 130 s |
+| 5. Prune, delete | Commit [`c7a29eb`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/c7a29eb) deletes the file | **Deleted** the ConfigMap from the cluster (`prune: true`) | 65 s |
 
 **Commit IDs:** this repository's history was rewritten after the demo, when commit messages were cleaned up. The same commits therefore have new IDs: `55a46e8` → `5d5e64c`, `1482441` → `81c5b8d`, `92df06a` → `c7a29eb`, and `d11f2e0` (the commit synced first) → `fc12367`. The transcripts and the Argo CD screenshot show the IDs as they were during the demo.
 

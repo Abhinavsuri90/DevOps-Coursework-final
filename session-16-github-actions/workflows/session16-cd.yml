@@ -28,11 +28,11 @@ jobs:
       - name: Image name
         id: meta
         run: |
-          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          repo="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           sha="${{ github.event.workflow_run.head_sha || github.sha }}"
           {
-            echo "image=ghcr.io/${owner}/gpa-calculator:${sha::12}"
-            echo "latest=ghcr.io/${owner}/gpa-calculator:latest"
+            echo "image=ghcr.io/${repo}/gpa-calculator:${sha::12}"
+            echo "latest=ghcr.io/${repo}/gpa-calculator:latest"
             echo "version=${sha::12}"
           } >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
