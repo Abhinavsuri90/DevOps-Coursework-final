@@ -1,0 +1,3 @@
+# npm ci and npm run build run inside the image; local installs and builds stay out of the context.
+node_modules
+dist

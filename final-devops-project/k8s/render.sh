@@ -4,5 +4,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 helm template spendwise helm/spendwise -n spendwise -f helm/spendwise/values-local.yaml \
-  > kubernetes/spendwise-rendered.yaml
-echo "wrote kubernetes/spendwise-rendered.yaml"
+  > k8s/spendwise-rendered.yaml
+echo "wrote k8s/spendwise-rendered.yaml"

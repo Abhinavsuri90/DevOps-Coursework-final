@@ -3,8 +3,8 @@ $ ruff check .
 All checks passed!
 $ pytest -v --cov=app --cov-report=term-missing -p no:cacheprovider 2>&1 | grep -v -E 'DeprecationWarning|from starlette.testclient|^ *$|warnings summary|Docs: https|site-packages/fastapi/testclient.py' | sed -E 's# -- /.*/bin/python3.13##'
 ============================= test session starts ==============================
-platform darwin -- Python 3.13.3, pytest-9.1.1, pluggy-1.6.0
-rootdir: /Users/abhinavsuri/Desktop/DevOps-Coursework/final-devops-project/application/backend
+platform darwin -- Python 3.13.3, pytest-9.1.1, pluggy-1.7.0
+rootdir: /Users/abhinavsuri/Desktop/DevOps-Coursework/final-devops-project/backend
 configfile: pytest.ini
 testpaths: tests
 plugins: cov-7.1.0, anyio-4.15.1
@@ -22,7 +22,7 @@ tests/test_expenses.py::test_metrics_endpoint PASSED                     [100%]
 
 
 tests/test_expenses.py::test_create_and_list_expenses
-  /tmp/scratchpad/venv21/lib/python3.13/site-packages/fastapi/routing.py:416: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10b424c70>
+  /Users/abhinavsuri/Desktop/DevOps-Coursework/final-devops-project/.venv/lib/python3.13/site-packages/fastapi/routing.py:416: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10cceb880>
     async def app(request: Request) -> Response:
   Enable tracemalloc to get traceback where the object was allocated.
   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
@@ -41,4 +41,4 @@ app/models.py        14      0   100%
 app/schemas.py       22      0   100%
 -----------------------------------------------
 TOTAL               132      4    97%
-======================== 9 passed, 2 warnings in 0.37s =========================
+======================== 9 passed, 2 warnings in 0.13s =========================

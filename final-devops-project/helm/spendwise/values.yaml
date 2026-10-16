@@ -39,7 +39,7 @@ database:
   name: spendwise
   user: spendwise
   # The password is never stored in Git. Either create the Secret first
-  # (kubernetes/create-db-secret.sh) and reference it here ...
+  # (k8s/create-db-secret.sh) and reference it here ...
   existingSecret: spendwise-db
   # ... or set existingSecret: "" and pass --set database.password=... at install time.
   password: ""

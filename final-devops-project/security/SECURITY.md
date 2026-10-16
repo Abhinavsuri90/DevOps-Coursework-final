@@ -19,5 +19,5 @@ Hardening in the images and manifests:
 - Terraform: Kubernetes Secrets are encrypted with a KMS key, and the EKS API only accepts the admin's CIDRs.
 - `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, all Linux capabilities dropped, `seccompProfile: RuntimeDefault`.
 - pip is removed from the backend runtime image (it bundles libraries scanners flag, and is not needed after install).
-- No secrets in Git: the DB password is generated at deploy time (`kubernetes/create-db-secret.sh`, `docker/.env` is git-ignored), and CI uses the short-lived `GITHUB_TOKEN`.
+- No secrets in Git: the DB password is generated at deploy time (`k8s/create-db-secret.sh`, `.env` is git-ignored), and CI uses the short-lived `GITHUB_TOKEN`.
 - Image tags are commit SHAs (immutable, traceable), never `latest`.

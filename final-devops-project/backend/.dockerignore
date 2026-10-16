@@ -1,0 +1,9 @@
+# The image needs only requirements.txt, alembic.ini, entrypoint.sh, alembic/ and app/.
+tests
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.coverage
+coverage.xml
+junit.xml
+*.db

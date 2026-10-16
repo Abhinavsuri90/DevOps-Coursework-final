@@ -17,19 +17,19 @@ help: ## List the targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-15s %s\n", $$1, $$2}'
 
 venv: $(PY)/pytest ## Create the Python virtualenv for the backend
-$(PY)/pytest: application/backend/requirements-dev.txt
-	python3 -m venv $(VENV) && $(PY)/pip install -q -r application/backend/requirements-dev.txt
+$(PY)/pytest: backend/requirements-dev.txt
+	python3 -m venv $(VENV) && $(PY)/pip install -q -r backend/requirements-dev.txt
 	@touch $@
 
 test: venv ## Lint and test the backend (SQLite test database), like the CI job
-	cd application/backend && ../../$(PY)/ruff check . && ../../$(PY)/pytest --cov=app --cov-report=term-missing
+	cd backend && ../$(PY)/ruff check . && ../$(PY)/pytest --cov=app --cov-report=term-missing
 
 frontend-build: ## npm ci + production build of the React app
-	cd application/frontend && npm ci --no-audit --no-fund && npm run build
+	cd frontend && npm ci --no-audit --no-fund && npm run build
 
 scan: ## Secret scan + dependency scans + IaC scan (same tools as CI)
 	docker run --rm -v "$$PWD:/src" $(GITLEAKS) dir /src --config /src/security/gitleaks.toml --redact --exit-code 1
-	docker run --rm -v "$$PWD:/src" -w /src $(TRIVY) fs --config security/trivy.yaml --format table application
+	for dir in backend frontend; do docker run --rm -v "$$PWD:/src" -w /src $(TRIVY) fs --config security/trivy.yaml --format table $$dir || exit 1; done
 	$(MAKE) scan-iac
 
 scan-iac: ## Trivy misconfiguration scan of Terraform and the rendered Helm chart
@@ -38,22 +38,22 @@ scan-iac: ## Trivy misconfiguration scan of Terraform and the rendered Helm char
 	docker run --rm -v "$$PWD:/src" -w /src $(TRIVY) config --quiet --severity HIGH,CRITICAL \
 	  --helm-set backend.image.tag=scan,frontend.image.tag=scan --exit-code 1 helm/spendwise
 
-compose-up: ## Run the stack with Docker Compose on http://localhost:3000 (creates docker/.env once)
-	@test -f docker/.env || sed "s/change-me/$$(openssl rand -hex 16)/" docker/.env.example > docker/.env
-	docker compose -f docker/docker-compose.yml up --build --detach
-	docker compose -f docker/docker-compose.yml ps
+compose-up: ## Run the stack with Docker Compose on http://localhost:3000 (creates .env once)
+	@test -f .env || sed "s/change-me/$$(openssl rand -hex 16)/" .env.example > .env
+	docker compose up --build --detach
+	docker compose ps
 
 compose-down: ## Stop Docker Compose and delete its volume
-	docker compose -f docker/docker-compose.yml down --volumes
+	docker compose down --volumes
 
 images: ## Build both images locally and load them into Minikube (tag "local")
-	docker compose -f docker/docker-compose.yml build
+	docker compose build
 	minikube image load spendwise-backend:local
 	minikube image load spendwise-frontend:local
 
 deploy-helm: ## Install/upgrade the chart by hand with values-local.yaml (skip this when Argo CD manages the namespace)
-	kubectl apply -f kubernetes/namespace.yaml
-	bash kubernetes/create-db-secret.sh $(NAMESPACE)
+	kubectl apply -f k8s/namespace.yaml
+	bash k8s/create-db-secret.sh $(NAMESPACE)
 	helm upgrade --install spendwise helm/spendwise -n $(NAMESPACE) -f helm/spendwise/values-local.yaml --wait --timeout 6m
 	helm test spendwise -n $(NAMESPACE) --logs
 
@@ -68,8 +68,8 @@ argocd: ## Install Argo CD into "argocd"
 	helm upgrade --install argocd argo/argo-cd -n argocd --create-namespace -f gitops/argocd-values.yaml --wait --timeout 10m
 
 gitops: ## Hand the namespace to Argo CD: remove a hand-run Helm release (the PVC keeps the data), apply the Application
-	kubectl apply -f kubernetes/namespace.yaml
-	bash kubernetes/create-db-secret.sh $(NAMESPACE)
+	kubectl apply -f k8s/namespace.yaml
+	bash k8s/create-db-secret.sh $(NAMESPACE)
 	-helm uninstall spendwise -n $(NAMESPACE) --wait
 	kubectl apply -f gitops/argocd-application.yaml
 	@echo "Watch it: kubectl -n argocd get applications.argoproj.io spendwise -w"
@@ -107,5 +107,5 @@ status: ## What is running: Argo CD app, Pods, HPA, deployed images
 	kubectl get deploy -n $(NAMESPACE) -o custom-columns='DEPLOYMENT:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
 
 clean: ## Remove local build output and caches
-	rm -rf $(VENV) application/frontend/dist application/frontend/node_modules
-	find application -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache -o -name .coverage | xargs rm -rf
+	rm -rf $(VENV) frontend/dist frontend/node_modules
+	find backend -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache -o -name .coverage | xargs rm -rf

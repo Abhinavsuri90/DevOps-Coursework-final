@@ -26,7 +26,7 @@ Open these tabs:
 | --- | --- | --- |
 | 0:00 | The app (tab 1). Add an expense | "SpendWise is my own app: React UI, FastAPI API, PostgreSQL. The footer shows the exact commit that is running." |
 | 0:40 | README → Architecture diagram | "A push runs tests and security scans, builds two images, pushes them to GHCR with the commit SHA, deploys to a throwaway kind cluster, and then commits the new tag to Git. Argo CD deploys from Git. CI never touches my cluster." |
-| 1:20 | Edit `application/frontend/src/App.jsx` (the subtitle), then `git commit -am "Demo: new subtitle"` and `git push` | "One commit, nothing else by hand." |
+| 1:20 | Edit `frontend/src/App.jsx` (the subtitle), then `git commit -am "Demo: new subtitle"` and `git push` | "One commit, nothing else by hand." |
 | 1:40 | Actions tab → the new run → job graph | "Lint and tests, then SAST, SCA, secret and IaC scans in parallel, image builds with Trivy, the security gate, the push, the kind deploy with helm test and an Ingress smoke test, then the GitOps commit." Open a *Trivy image scan* annotation: "0 HIGH or CRITICAL; if there were any, the gate would stop the release." |
 | 3:00 | While it runs: `kubectl -n spendwise scale deploy/spendwise-frontend --replicas=1`, then Argo CD (tab 2) | "Self-heal: Git says 2 replicas, so Argo CD puts it back within seconds." |
 | 3:30 | Pipeline green → `git pull` shows `gitops: deploy spendwise <sha>` | "The only thing CI changed is the two image tags in `values-gitops.yaml`." |

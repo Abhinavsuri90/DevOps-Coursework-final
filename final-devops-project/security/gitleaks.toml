@@ -10,5 +10,5 @@ paths = [
   '''evidence/''',
   '''screenshots/''',
   '''package-lock\.json''',
-  '''kubernetes/spendwise-rendered\.yaml''',
+  '''k8s/spendwise-rendered\.yaml''',
 ]

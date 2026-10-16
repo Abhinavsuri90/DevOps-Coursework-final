@@ -1,6 +1,5 @@
 # Local secrets and generated files
 .env
-docker/.env
 *.tfstate
 *.tfstate.*
 .terraform/
@@ -17,3 +16,5 @@ coverage.xml
 junit.xml
 *.sarif
 *.tar.gz
+*.kubeconfig
+*.tfplan

@@ -1,4 +1,4 @@
-# Full stack on one machine:  cd docker && cp .env.example .env  (set a password)  &&  docker compose up --build
+# Full stack on one machine:  cp .env.example .env  (set a password)  &&  docker compose up --build
 # Then open http://localhost:3000
 name: spendwise
 
@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: spendwise
       POSTGRES_USER: spendwise
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in docker/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -18,9 +18,7 @@ services:
       retries: 10
 
   backend:
-    build:
-      context: ..
-      dockerfile: docker/backend.Dockerfile
+    build: ./backend
     image: spendwise-backend:local
     environment:
       DATABASE_URL: postgresql+psycopg://spendwise:${POSTGRES_PASSWORD}@postgres:5432/spendwise
@@ -32,9 +30,7 @@ services:
       - "8000:8000"
 
   frontend:
-    build:
-      context: ..
-      dockerfile: docker/frontend.Dockerfile
+    build: ./frontend
     image: spendwise-frontend:local
     environment:
       BACKEND_HOST: backend
