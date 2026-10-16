@@ -2,14 +2,14 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav (24BCS10282)
 
-This is an end-to-end AWS infrastructure project in Terraform (v1.16.5, AWS provider 6.68, region `ap-south-1`). It builds a **VPC → public subnet → security group → EC2 web server**, plus an **S3 bucket** for artifacts. The EC2 instance boots nginx with a page showing its own instance metadata, and the bucket receives an `architecture.txt` object that references the VPC, subnet and instance.
+This is an end-to-end AWS infrastructure project in Terraform (v1.16.5, AWS provider 6.68, region `ap-southeast-2`, Sydney). It was applied, checked and destroyed on a real AWS account; see [Recorded run on AWS](#recorded-run-on-aws). It builds a **VPC → public subnet → security group → EC2 web server**, plus an **S3 bucket** for artifacts. The EC2 instance boots nginx with a page showing its own instance metadata, and the bucket receives an `architecture.txt` object that references the VPC, subnet and instance.
 
 | Deliverable | Where |
 | --- | --- |
 | Terraform project | [terraform-project/](terraform-project/) |
 | AWS resources | VPC, Internet Gateway, subnet, route table, security group + rules, EC2 instance, S3 bucket + versioning, encryption, public access block, object. See [Resources](#resources) |
 | Architecture diagram | [Architecture](#architecture) |
-| Terraform commands | [Commands](#terraform-commands) |
+| Terraform commands | [Commands](#terraform-commands), [recorded run on AWS](#recorded-run-on-aws) ([evidence/terraform-aws-run.txt](evidence/terraform-aws-run.txt)) |
 | Screenshots | [screenshots/](screenshots/) |
 | README | this file |
 
@@ -18,11 +18,11 @@ This is an end-to-end AWS infrastructure project in Terraform (v1.16.5, AWS prov
 ```mermaid
 flowchart TB
     User((Browser)) -->|HTTP :80| IGW
-    subgraph AWS["AWS ap-south-1"]
+    subgraph AWS["AWS ap-southeast-2 (Sydney)"]
       subgraph VPC["VPC abhinav-s19-vpc · 10.19.0.0/16"]
         IGW[Internet Gateway]
         RT["Route table\n0.0.0.0/0 → IGW"]
-        subgraph SUB["Public subnet 10.19.1.0/24 · AZ ap-south-1a"]
+        subgraph SUB["Public subnet 10.19.1.0/24 · AZ ap-southeast-2a"]
           EC2["EC2 abhinav-s19-web\nt3.micro · Amazon Linux 2023\nnginx via user_data · IMDSv2 · encrypted gp3"]
         end
         SG["Security group abhinav-s19-web-sg\nin: 80 from 0.0.0.0/0, 22 only from ssh_allowed_cidrs\nout: all"]
@@ -75,7 +75,7 @@ Recorded locally ([evidence/terraform-local-checks.txt](evidence/terraform-local
 
 ![init, fmt, validate and the dependency graph](screenshots/01-init-fmt-validate-graph.png)
 
-The full life cycle on AWS needs credentials (`aws login` or `aws configure`):
+The full life cycle on AWS needs credentials (`aws login`, or `aws configure` with an IAM user's access key). They come from the standard AWS credential chain and are never written into `.tf` or `.tfvars` files:
 
 ```bash
 cd session19-cloud-terraform/terraform-project
@@ -94,6 +94,33 @@ terraform destroy                                 # Destroy complete! Resources:
 ```
 
 **Cost:** `t3.micro` is free-tier eligible, and the bucket holds a few bytes. The only paid item while running is the instance's public IPv4 address, billed per hour. Destroy right after the demo.
+
+### Recorded run on AWS
+
+The whole life cycle ran against a real AWS account in `ap-southeast-2` (Sydney) ([evidence/terraform-aws-run.txt](evidence/terraform-aws-run.txt)). That account is on the AWS Free plan, which only allows one region; Mumbai (`ap-south-1`) was refused by a service control policy, as recorded in [Session 18](../session18-terraform-iac/terraform-s3-demo/README.md#run-it-on-aws-recorded). The region is a variable, so nothing else in the code changed. The transcript replaces the 12-digit account ID with `<account-id>`.
+
+| Step | Result |
+| --- | --- |
+| `terraform plan -out s19.tfplan` | The three data sources resolve (AZs, Amazon Linux 2023 AMI from SSM, account ID): `Plan: 14 to add, 0 to change, 0 to destroy.` |
+| `terraform apply s19.tfplan` | `Apply complete! Resources: 14 added, 0 changed, 0 destroyed.` The instance is created only after the route table association (`depends_on`), and `architecture.txt` comes last because it contains the instance ID |
+| `terraform output` | `instance_id = "i-0107ff1a212427a04"`, `instance_public_ip = "32.236.82.18"`, `web_url = "http://ec2-32-236-82-18.ap-southeast-2.compute.amazonaws.com"`, VPC, subnet, security group and bucket |
+| Web page | nginx answered **15 s** after the apply, showing the instance ID, `t3.micro`, AZ `ap-southeast-2a`, private and public IP |
+| AWS CLI checks | Instance `running`, IMDSv2 `required`; root volume gp3, 8 GiB, encrypted; route `0.0.0.0/0 → igw-…`; the security group allows only tcp 80; `architecture.txt` = `VPC 10.19.0.0/16 -> subnet 10.19.1.0/24 -> EC2 i-0107ff1a212427a04` |
+| `terraform state list` / `state show aws_instance.web` | 3 data sources and 14 resources; the instance's AZ, IPs, IMDS and volume settings |
+| `terraform plan` again | `No changes. Your infrastructure matches the configuration.` (no drift) |
+| `terraform destroy -auto-approve` | `Destroy complete! Resources: 14 destroyed.` in 1 min 4 s (children first, the VPC last). The state is empty, the instance is `terminated`, the VPC returns `InvalidVpcID.NotFound`, the bucket returns **404 Not Found**, and the old public IP no longer answers |
+
+The page that `user_data.sh` built on the instance at first boot:
+
+![nginx page served by the EC2 instance](screenshots/browser-01-ec2-web-page.png)
+
+![init, plan (14 resources), apply and outputs](screenshots/02-plan-apply-outputs.png)
+
+![the web page and the AWS CLI checks](screenshots/03-verify-resources.png)
+
+![state list, state show and a plan with no changes](screenshots/04-state-and-no-drift.png)
+
+![terraform destroy and proof that everything is gone](screenshots/05-destroy.png)
 
 ## Lessons learned
 

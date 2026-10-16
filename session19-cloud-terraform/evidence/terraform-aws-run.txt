@@ -1,0 +1,151 @@
+# Session 19 on AWS ap-southeast-2 (the Free-plan account's region). 'mask' replaces 12-digit AWS account IDs with <account-id>
+# 1. init / fmt / validate
+$ terraform init -input=false -no-color | grep -E 'Initializing|Reusing|Installed|successfully'
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+Terraform has been successfully initialized!
+$ terraform fmt -check && echo 'fmt: all files already formatted'
+fmt: all files already formatted
+$ terraform validate -no-color
+Success! The configuration is valid.
+
+# 2. plan: providers, variables (defaults) and data sources resolve; 14 resources
+$ terraform plan -input=false -no-color -out s19.tfplan 2>&1 | grep -E '^  # |^Plan:|Error' | mask
+  # aws_instance.web will be created
+  # aws_internet_gateway.main will be created
+  # aws_route_table.public will be created
+  # aws_route_table_association.public will be created
+  # aws_s3_bucket.assets will be created
+  # aws_s3_bucket_public_access_block.assets will be created
+  # aws_s3_bucket_server_side_encryption_configuration.assets will be created
+  # aws_s3_bucket_versioning.assets will be created
+  # aws_s3_object.architecture will be created
+  # aws_security_group.web will be created
+  # aws_subnet.public will be created
+  # aws_vpc.main will be created
+  # aws_vpc_security_group_egress_rule.all will be created
+  # aws_vpc_security_group_ingress_rule.http will be created
+Plan: 14 to add, 0 to change, 0 to destroy.
+# 3. apply
+$ terraform apply -input=false -no-color s19.tfplan 2>&1 | grep -E 'Creation complete|Apply complete|Error' | mask
+aws_vpc.main: Creation complete after 6s [id=vpc-09530efd9956fd23b]
+aws_internet_gateway.main: Creation complete after 3s [id=igw-0203438f132486858]
+aws_security_group.web: Creation complete after 5s [id=sg-0b7044ea78ef89f26]
+aws_vpc_security_group_egress_rule.all: Creation complete after 1s [id=sgr-04b8c3267d5b2a9b3]
+aws_vpc_security_group_ingress_rule.http: Creation complete after 1s [id=sgr-0dbf6abe05e64a449]
+aws_route_table.public: Creation complete after 3s [id=rtb-0430ab82b9f569947]
+aws_s3_bucket.assets: Creation complete after 18s [id=abhinav-s19-assets-<account-id>]
+aws_s3_bucket_public_access_block.assets: Creation complete after 2s [id=abhinav-s19-assets-<account-id>]
+aws_s3_bucket_server_side_encryption_configuration.assets: Creation complete after 2s [id=abhinav-s19-assets-<account-id>]
+aws_subnet.public: Creation complete after 14s [id=subnet-0590e6b1ed04d7e4a]
+aws_s3_bucket_versioning.assets: Creation complete after 3s [id=abhinav-s19-assets-<account-id>]
+aws_route_table_association.public: Creation complete after 2s [id=rtbassoc-0748aa23d20fdd56e]
+aws_instance.web: Creation complete after 17s [id=i-0107ff1a212427a04]
+aws_s3_object.architecture: Creation complete after 2s [id=abhinav-s19-assets-<account-id>/architecture.txt]
+Apply complete! Resources: 14 added, 0 changed, 0 destroyed.
+# 4. outputs
+$ terraform output -no-color | mask
+assets_bucket = "abhinav-s19-assets-<account-id>"
+instance_id = "i-0107ff1a212427a04"
+instance_public_ip = "32.236.82.18"
+public_subnet_id = "subnet-0590e6b1ed04d7e4a"
+security_group_id = "sg-0b7044ea78ef89f26"
+vpc_id = "vpc-09530efd9956fd23b"
+web_url = "http://ec2-32-236-82-18.ap-southeast-2.compute.amazonaws.com"
+# 5. The EC2 instance installs nginx at first boot (user_data); wait for the page, then read it
+$ SECONDS=0; until curl -s -m 5 $(terraform output -raw web_url) | grep -q 'deployed with Terraform'; do sleep 10; done; echo "web page up ${SECONDS}s after apply"
+web page up 15s after apply
+$ curl -s $(terraform output -raw web_url) | sed -e 's/<[^>]*>/ /g' -e 's/&middot;/|/g' | tr -s ' ' | grep -v '^ *$' | mask
+ abhinav-s19: deployed with Terraform 
+ Instance: i-0107ff1a212427a04 (type t3.micro) 
+ Availability zone: ap-southeast-2a 
+ Private IP: 10.19.1.30 | Public IP: 32.236.82.18 
+ Artifacts bucket: abhinav-s19-assets-<account-id> 
+# 6. Check the resources with the AWS CLI
+$ aws ec2 describe-instances --instance-ids $(terraform output -raw instance_id) --query 'Reservations[0].Instances[0].{state:State.Name,type:InstanceType,az:Placement.AvailabilityZone,imds:MetadataOptions.HttpTokens,subnet:SubnetId,vpc:VpcId}' --output table
+----------------------------------------
+|           DescribeInstances          |
++---------+----------------------------+
+|  az     |  ap-southeast-2a           |
+|  imds   |  required                  |
+|  state  |  running                   |
+|  subnet |  subnet-0590e6b1ed04d7e4a  |
+|  type   |  t3.micro                  |
+|  vpc    |  vpc-09530efd9956fd23b     |
++---------+----------------------------+
+$ aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=$(terraform output -raw instance_id) --query 'Volumes[].{type:VolumeType,size:Size,encrypted:Encrypted}' --output table
+-------------------------------
+|       DescribeVolumes       |
++-----------+--------+--------+
+| encrypted | size   | type   |
++-----------+--------+--------+
+|  True     |  8     |  gp3   |
++-----------+--------+--------+
+$ aws ec2 describe-route-tables --filters Name=vpc-id,Values=$(terraform output -raw vpc_id) Name=association.main,Values=false --query 'RouteTables[0].Routes[].[DestinationCidrBlock,GatewayId]' --output text
+10.19.0.0/16	local
+0.0.0.0/0	igw-0203438f132486858
+$ aws ec2 describe-security-groups --group-ids $(terraform output -raw security_group_id) --query 'SecurityGroups[0].IpPermissions[].[IpProtocol,FromPort,ToPort,IpRanges[0].CidrIp]' --output text
+tcp	80	80	0.0.0.0/0
+$ aws s3 cp s3://$(terraform output -raw assets_bucket)/architecture.txt - | mask
+VPC 10.19.0.0/16 -> subnet 10.19.1.0/24 -> EC2 i-0107ff1a212427a04
+# 7. State: what Terraform tracks, one resource in detail, and a plan that finds no drift
+$ terraform state list
+data.aws_availability_zones.available
+data.aws_caller_identity.current
+data.aws_ssm_parameter.al2023
+aws_instance.web
+aws_internet_gateway.main
+aws_route_table.public
+aws_route_table_association.public
+aws_s3_bucket.assets
+aws_s3_bucket_public_access_block.assets
+aws_s3_bucket_server_side_encryption_configuration.assets
+aws_s3_bucket_versioning.assets
+aws_s3_object.architecture
+aws_security_group.web
+aws_subnet.public
+aws_vpc.main
+aws_vpc_security_group_egress_rule.all
+aws_vpc_security_group_ingress_rule.http
+$ terraform state show -no-color aws_instance.web | grep -E '^    (ami|instance_type|public_ip|private_ip|subnet_id|availability_zone) |http_tokens|encrypted|volume_type' | mask
+    ami                                  = (sensitive value)
+    availability_zone                    = "ap-southeast-2a"
+    instance_type                        = "t3.micro"
+    private_ip                           = "10.19.1.30"
+    public_ip                            = "32.236.82.18"
+    subnet_id                            = "subnet-0590e6b1ed04d7e4a"
+        http_tokens                 = "required"
+        encrypted             = true
+        volume_type           = "gp3"
+$ terraform plan -input=false -no-color 2>&1 | grep -E 'No changes|to add|Error'
+No changes. Your infrastructure matches the configuration.
+# 8. terraform destroy (force_destroy empties the versioned bucket first)
+$ SECONDS=0; terraform destroy -auto-approve -input=false -no-color 2>&1 | grep -E 'Destruction complete|Destroy complete|Error' | mask; echo "destroy took $((SECONDS/60)) min $((SECONDS%60)) s"
+aws_vpc_security_group_egress_rule.all: Destruction complete after 1s
+aws_vpc_security_group_ingress_rule.http: Destruction complete after 1s
+aws_s3_bucket_versioning.assets: Destruction complete after 5s
+aws_s3_object.architecture: Destruction complete after 6s
+aws_s3_bucket_public_access_block.assets: Destruction complete after 6s
+aws_s3_bucket_server_side_encryption_configuration.assets: Destruction complete after 6s
+aws_instance.web: Destruction complete after 21s
+aws_route_table_association.public: Destruction complete after 1s
+aws_security_group.web: Destruction complete after 2s
+aws_subnet.public: Destruction complete after 2s
+aws_route_table.public: Destruction complete after 2s
+aws_internet_gateway.main: Destruction complete after 2s
+aws_s3_bucket.assets: Destruction complete after 5s
+aws_vpc.main: Destruction complete after 1s
+Destroy complete! Resources: 14 destroyed.
+destroy took 1 min 4 s
+# 9. Everything is gone ($BUCKET was saved from 'terraform output' before the destroy)
+$ terraform state list | wc -l | sed 's/^ */resources left in state: /'
+resources left in state: 0
+$ aws ec2 describe-instances --instance-ids i-0107ff1a212427a04 --query 'Reservations[].Instances[].[InstanceId,State.Name]' --output text
+i-0107ff1a212427a04	terminated
+$ aws ec2 describe-vpcs --vpc-ids vpc-09530efd9956fd23b 2>&1 | tail -1
+aws: [ERROR]: An error occurred (InvalidVpcID.NotFound) when calling the DescribeVpcs operation: The vpc ID 'vpc-09530efd9956fd23b' does not exist
+$ aws s3api head-bucket --bucket "$BUCKET" 2>&1 | tail -1
+aws: [ERROR]: An error occurred (404) when calling the HeadBucket operation: Not Found
+$ curl -s -m 5 -o /dev/null -w 'http://32.236.82.18 -> HTTP %{http_code}\n' http://32.236.82.18; true
+http://32.236.82.18 -> HTTP 000
