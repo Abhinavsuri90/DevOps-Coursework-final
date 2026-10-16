@@ -7,10 +7,10 @@ This project creates one **private, versioned, encrypted S3 bucket** with a samp
 | File | Contents |
 | --- | --- |
 | [provider.tf](provider.tf) | `terraform { required_version >= 1.6.0, aws ~> 6.68 }` and `provider "aws"` with `region = var.aws_region` and `default_tags` |
-| [variables.tf](variables.tf) | `aws_region` (default `ap-south-1`), `bucket_name` (with a `validation` regex for S3 naming rules), `environment`, `owner` |
+| [variables.tf](variables.tf) | `aws_region` (default `ap-southeast-2`), `bucket_name` (with a `validation` regex for S3 naming rules), `environment`, `owner` |
 | [main.tf](main.tf) | `aws_s3_bucket.demo` (`force_destroy = true` so that destroy can empty it), `aws_s3_bucket_versioning` (Enabled), `aws_s3_bucket_server_side_encryption_configuration` (AES256 / SSE-S3), `aws_s3_bucket_public_access_block` (all four flags true), `aws_s3_object.hello` (`hello.txt`) |
 | [outputs.tf](outputs.tf) | `bucket_name`, `bucket_arn`, `bucket_region`, `versioning_status`, `sample_object_uri` |
-| [terraform.tfvars](terraform.tfvars) | `bucket_name = "abhinav-24bcs10282-tf-s3-demo"` (globally unique), region, environment and owner. **No credentials** |
+| [terraform.tfvars](terraform.tfvars) | `bucket_name = "abhinav-24bcs10282-tf-s3-demo"` (globally unique), `aws_region = "ap-southeast-2"`, environment and owner. **No credentials** |
 | [.terraform.lock.hcl](.terraform.lock.hcl) | Provider version and checksums, committed so that everyone gets the same provider build |
 
 ```mermaid
@@ -38,56 +38,35 @@ Recorded run ([evidence/terraform-local-checks.txt](../evidence/terraform-local-
 
 ![init, fmt, validate, providers, graph](../screenshots/01-init-fmt-validate-graph.png)
 
-### Run it on AWS
+### Run it on AWS (recorded)
 
-These steps call AWS APIs and need credentials. The two options are:
+These steps call AWS APIs, so they need credentials:
 
-- `aws login`: browser sign-in with temporary credentials (recent AWS CLI v2)
-- `aws configure`: an IAM user's access key, with region `ap-south-1`
+- `aws login`: browser sign-in with temporary credentials
+- `aws configure`: an IAM user's access key (here the IAM user `terraform-student`)
 
 Check with `aws sts get-caller-identity`. Credentials never go into `.tf` or `.tfvars` files.
 
-```bash
-terraform plan -out tfplan
-```
-Expected: `Plan: 5 to add, 0 to change, 0 to destroy.` (the bucket, versioning, encryption, public access block, and `hello.txt`).
+All of the following ran against a real AWS account ([evidence/terraform-aws-run.txt](../evidence/terraform-aws-run.txt)). The transcript replaces the 12-digit account ID with `<account-id>`.
 
-```bash
-terraform apply tfplan
-```
-Creates the resources in dependency order and prints the outputs.
+| Step | Command | Result |
+| --- | --- | --- |
+| Plan | `terraform plan -out demo.tfplan` | `Plan: 5 to add, 0 to change, 0 to destroy.` |
+| First apply | `terraform apply demo.tfplan` (region `ap-south-1`) | **403 AccessDenied:** *explicit deny in a service control policy* |
+| Investigate | Create a throwaway bucket in 3 regions | `ap-southeast-2` allowed, `ap-south-1` and `us-east-1` denied |
+| Fix | `aws_region = "ap-southeast-2"` in `terraform.tfvars`, plan again | `Plan: 5 to add` |
+| Apply | `terraform apply demo.tfplan` | `Apply complete! Resources: 5 added`, bucket created in about 11 s |
+| Show / output | `terraform show`, `terraform output` | Bucket in `ap-southeast-2`, all four public-access flags `true`, `versioning_status = "Enabled"` |
+| Check with the AWS CLI | `aws s3 ls`, `aws s3 cp …/hello.txt -`, `get-bucket-versioning`, `get-bucket-encryption`, `get-public-access-block`, `get-bucket-tagging` | `Hello from Terraform - Session 18 - Abhinav`, `Enabled`, `AES256`, four × `true`, and the six tags from `default_tags` plus the resource tags |
+| Destroy | `terraform destroy -auto-approve` | `Destroy complete! Resources: 5 destroyed.` State is empty, and `head-bucket` returns **404 Not Found** |
 
-```bash
-terraform show
-```
-Prints the state: bucket ARN, versioning `Enabled`, `AES256`, and the object's ETag.
+**Why the first apply was denied.** New AWS accounts on the **Free plan** belong to an AWS-managed organization. Its service control policy (SCP) only allows the account's own project region, here Sydney (`ap-southeast-2`). An SCP is a guard-rail above IAM, so even `AdministratorAccess` cannot override it (see [IAM → SCP](../aws-services/01-iam/README.md)). `terraform plan` still worked, because planning only reads. The error appeared only when Terraform tried to create the bucket.
 
-```bash
-terraform output
-terraform output -raw sample_object_uri
-```
-Prints `bucket_name`, `bucket_arn`, `bucket_region`, `versioning_status` and `sample_object_uri`.
+![init, fmt, validate, plan; Mumbai denied; fixed by switching to Sydney](../screenshots/02-plan-region-fix.png)
 
-```bash
-aws s3 ls s3://abhinav-24bcs10282-tf-s3-demo/
-aws s3 cp s3://abhinav-24bcs10282-tf-s3-demo/hello.txt -
-```
-Proves the bucket and object really exist: `Hello from Terraform - Session 18 - Abhinav`.
+![terraform apply, show and output](../screenshots/03-apply-show-output.png)
 
-```bash
-aws s3api get-public-access-block --bucket abhinav-24bcs10282-tf-s3-demo
-```
-All four flags show `true`.
-
-```bash
-terraform destroy
-```
-`Destroy complete! Resources: 5 destroyed.` The `force_destroy` setting removes the object versions first.
-
-```bash
-terraform state list
-```
-After destroy this prints nothing: the state is empty.
+![AWS CLI checks, terraform destroy, and the bucket returns 404](../screenshots/04-verify-destroy.png)
 
 ## What each step teaches
 

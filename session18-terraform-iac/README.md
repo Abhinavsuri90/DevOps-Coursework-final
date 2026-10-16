@@ -2,7 +2,7 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav (24BCS10282)
 
-Terraform v1.16.5 with the AWS provider 6.68, region `ap-south-1` (Mumbai).
+Terraform v1.16.5 with the AWS provider 6.68, region `ap-southeast-2` (Sydney). The AWS Free-plan account only allows its own project region; the first apply in Mumbai was denied, as recorded below.
 
 | Task | Where |
 | --- | --- |
@@ -60,7 +60,21 @@ Infrastructure as Code (IaC) describes servers, networks, buckets and permission
 
 ![terraform init, fmt, validate and the dependency graph](screenshots/01-init-fmt-validate-graph.png)
 
-`plan`, `apply`, `show`, `output` and `destroy` talk to AWS, so they need credentials, from `aws login` (browser sign-in) or `aws configure` (an IAM user's access key). The exact commands and what to check at each step are in [terraform-s3-demo/README.md](terraform-s3-demo/README.md#run-it-on-aws).
+`plan`, `apply`, `show`, `output` and `destroy` were then **run on a real AWS account** with the IAM user `terraform-student` ([evidence/terraform-aws-run.txt](evidence/terraform-aws-run.txt)):
+
+1. `plan`: 5 resources.
+2. First `apply` in Mumbai: **denied** by the Free-plan service control policy.
+3. Fix: switch to Sydney.
+4. `apply`: 5 created.
+5. `show` / `output`.
+6. The real bucket checked with the AWS CLI: the object, versioning, AES256 encryption, Block Public Access and the tags.
+7. `destroy`: 5 destroyed, and the bucket is gone (404).
+
+Every step and its output is in [terraform-s3-demo/README.md](terraform-s3-demo/README.md#run-it-on-aws-recorded).
+
+![terraform apply, show and output](screenshots/03-apply-show-output.png)
+
+![CLI checks and terraform destroy](screenshots/04-verify-destroy.png)
 
 ## AWS services research
 

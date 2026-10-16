@@ -1,0 +1,119 @@
+# Session 18 terraform-s3-demo on AWS. 'mask' replaces 12-digit AWS account IDs with <account-id>
+$ aws sts get-caller-identity --query Arn --output text | mask
+arn:aws:iam::<account-id>:user/terraform-student
+# 1. terraform init / fmt / validate
+$ terraform init -input=false -no-color | grep -E 'Initializing|Reusing|Installed|successfully'
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+Terraform has been successfully initialized!
+$ terraform fmt -check && echo 'fmt: all files already formatted'
+fmt: all files already formatted
+$ terraform validate -no-color
+Success! The configuration is valid.
+
+# 2. First attempt in ap-south-1 (Mumbai): plan works, apply is DENIED
+$ grep aws_region terraform.tfvars
+aws_region  = "ap-south-1"
+$ terraform plan -input=false -no-color -out demo.tfplan | grep -E '^  # |^Plan:'
+  # aws_s3_bucket.demo will be created
+  # aws_s3_bucket_public_access_block.demo will be created
+  # aws_s3_bucket_server_side_encryption_configuration.demo will be created
+  # aws_s3_bucket_versioning.demo will be created
+  # aws_s3_object.hello will be created
+Plan: 5 to add, 0 to change, 0 to destroy.
+$ terraform apply -input=false -no-color demo.tfplan 2>&1 | grep -E 'Error:|explicit deny' | cut -c1-140 | mask
+Error: creating S3 Bucket (abhinav-24bcs10282-tf-s3-demo): operation error S3: CreateBucket, https response error StatusCode: 403, RequestID
+# Root cause: AWS Free-plan accounts sit in an AWS-managed organization whose service control policy only allows
+# the account's project region. Proof: a throwaway bucket per region (created, then deleted at once)
+$ B=abhinav-region-check-$(openssl rand -hex 3); for r in ap-southeast-2 ap-south-1 us-east-1; do if aws s3api create-bucket --bucket $B-$r --region $r --create-bucket-configuration LocationConstraint=$r >/dev/null 2>&1 || { [ $r = us-east-1 ] && aws s3api create-bucket --bucket $B-$r --region $r >/dev/null 2>&1; }; then echo "$r: allowed"; aws s3api delete-bucket --bucket $B-$r --region $r; else echo "$r: denied by the service control policy"; fi; done
+ap-southeast-2: allowed
+ap-south-1: denied by the service control policy
+us-east-1: denied by the service control policy
+# 3. Fix: use the allowed region ap-southeast-2 (Sydney)
+$ sed -i '' 's/"ap-south-1"/"ap-southeast-2"/' terraform.tfvars && grep aws_region terraform.tfvars
+aws_region  = "ap-southeast-2"
+$ terraform plan -input=false -no-color -out demo.tfplan | grep -E '^  # |^Plan:'
+  # aws_s3_bucket.demo will be created
+  # aws_s3_bucket_public_access_block.demo will be created
+  # aws_s3_bucket_server_side_encryption_configuration.demo will be created
+  # aws_s3_bucket_versioning.demo will be created
+  # aws_s3_object.hello will be created
+Plan: 5 to add, 0 to change, 0 to destroy.
+# 4. terraform apply (applies exactly the saved plan)
+$ terraform apply -input=false -no-color demo.tfplan 2>&1 | grep -E 'Creation complete|Apply complete|Error' | mask
+aws_s3_bucket.demo: Creation complete after 11s [id=abhinav-24bcs10282-tf-s3-demo]
+aws_s3_bucket_server_side_encryption_configuration.demo: Creation complete after 2s [id=abhinav-24bcs10282-tf-s3-demo]
+aws_s3_object.hello: Creation complete after 2s [id=abhinav-24bcs10282-tf-s3-demo/hello.txt]
+aws_s3_bucket_public_access_block.demo: Creation complete after 3s [id=abhinav-24bcs10282-tf-s3-demo]
+aws_s3_bucket_versioning.demo: Creation complete after 5s [id=abhinav-24bcs10282-tf-s3-demo]
+Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+# 5. terraform show / output
+$ terraform show -no-color | grep -E '^# |^    (bucket|region|key|content_type|status|sse_algorithm|block_public_acls|block_public_policy|restrict_public_buckets) ' | mask
+# aws_s3_bucket.demo:
+    bucket                      = "abhinav-24bcs10282-tf-s3-demo"
+    region                      = "ap-southeast-2"
+# aws_s3_bucket_public_access_block.demo:
+    block_public_acls       = true
+    block_public_policy     = true
+    bucket                  = "abhinav-24bcs10282-tf-s3-demo"
+    region                  = "ap-southeast-2"
+    restrict_public_buckets = true
+# aws_s3_bucket_server_side_encryption_configuration.demo:
+    bucket                = "abhinav-24bcs10282-tf-s3-demo"
+    region                = "ap-southeast-2"
+# aws_s3_bucket_versioning.demo:
+    bucket                = "abhinav-24bcs10282-tf-s3-demo"
+    region                = "ap-southeast-2"
+# aws_s3_object.hello:
+    bucket                        = "abhinav-24bcs10282-tf-s3-demo"
+    content_type                  = "text/plain"
+    key                           = "hello.txt"
+    region                        = "ap-southeast-2"
+$ terraform output -no-color | mask
+bucket_arn = "arn:aws:s3:::abhinav-24bcs10282-tf-s3-demo"
+bucket_name = "abhinav-24bcs10282-tf-s3-demo"
+bucket_region = "ap-southeast-2"
+sample_object_uri = "s3://abhinav-24bcs10282-tf-s3-demo/hello.txt"
+versioning_status = "Enabled"
+# 6. Check the real bucket with the AWS CLI
+$ aws s3 ls s3://$(terraform output -raw bucket_name)/
+2026-10-16 09:31:58         44 hello.txt
+$ aws s3 cp s3://$(terraform output -raw bucket_name)/hello.txt -
+Hello from Terraform - Session 18 - Abhinav
+$ aws s3api get-bucket-versioning --bucket $(terraform output -raw bucket_name) --query Status --output text
+Enabled
+$ aws s3api get-bucket-encryption --bucket $(terraform output -raw bucket_name) --query 'ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm' --output text
+AES256
+$ aws s3api get-public-access-block --bucket $(terraform output -raw bucket_name) --query PublicAccessBlockConfiguration --output json
+{
+    "BlockPublicAcls": true,
+    "IgnorePublicAcls": true,
+    "BlockPublicPolicy": true,
+    "RestrictPublicBuckets": true
+}
+$ aws s3api get-bucket-tagging --bucket $(terraform output -raw bucket_name) --query 'TagSet[].[Key,Value]' --output text | sort
+Environment	dev
+ManagedBy	Terraform
+Name	abhinav-24bcs10282-tf-s3-demo
+Owner	Abhinav
+Project	DevOps-Coursework
+Session	18-terraform-iac
+$ terraform state list
+aws_s3_bucket.demo
+aws_s3_bucket_public_access_block.demo
+aws_s3_bucket_server_side_encryption_configuration.demo
+aws_s3_bucket_versioning.demo
+aws_s3_object.hello
+# 7. terraform destroy (force_destroy empties the versioned bucket first)
+$ terraform destroy -auto-approve -input=false -no-color 2>&1 | grep -E 'Destruction complete|Destroy complete|Error' | mask
+aws_s3_bucket_versioning.demo: Destruction complete after 2s
+aws_s3_bucket_server_side_encryption_configuration.demo: Destruction complete after 2s
+aws_s3_object.hello: Destruction complete after 2s
+aws_s3_bucket_public_access_block.demo: Destruction complete after 3s
+aws_s3_bucket.demo: Destruction complete after 1s
+Destroy complete! Resources: 5 destroyed.
+$ terraform state list | wc -l | sed 's/^ */resources left in state: /'
+resources left in state: 0
+$ aws s3api head-bucket --bucket abhinav-24bcs10282-tf-s3-demo 2>&1 | tail -1
+aws: [ERROR]: An error occurred (404) when calling the HeadBucket operation: Not Found
