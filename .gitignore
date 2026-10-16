@@ -1,0 +1,24 @@
+# Repository-wide ignores. Each project folder also has its own .gitignore.
+
+# Secrets and local environment files (examples such as .env.example stay tracked)
+.env
+*.kubeconfig
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Node
+node_modules/
+
+# Terraform state, providers and saved plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# macOS
+.DS_Store
