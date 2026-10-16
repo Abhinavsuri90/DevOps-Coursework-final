@@ -94,7 +94,7 @@ Infrastructure: Terraform → AWS VPC + EKS
 
 ```mermaid
 flowchart LR
-    Dev([Developer]) -->|git push| Repo[(GitHub repo<br/>DevOps-Coursework)]
+    Dev([Developer]) -->|git push| Repo[(GitHub repo<br/>DevOps-Coursework-final)]
     Repo -->|push to main| CI
 
     subgraph CI["GitHub Actions: final-devops-project.yml"]
@@ -401,7 +401,7 @@ Images are tagged only with the **commit SHA**, never `latest`, so every running
 
 Every run is listed under [Actions → "Final project · SpendWise CI/CD"](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/final-devops-project.yml).
 
-**A green run.** [Run 38690443409](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38690443409), on commit `73177c1`, passed all 12 jobs in 5 min 49 s:
+**A green run.** [Run 38836429276](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38836429276), on commit `37f1793`, passed all 12 jobs in 5 min 57 s:
 
 ![Green pipeline run on GitHub Actions](screenshots/browser-11-github-actions-run.png)
 
@@ -530,13 +530,11 @@ The same checks from the terminal (metrics, ServiceMonitor, targets, rule health
 - `am` lists what reached Alertmanager
 - `query '<PromQL>'` runs an instant query
 
-**On an 8 GB laptop.** Minikube has about 3.4 GB of memory for everything: the control plane, the monitoring stack, Argo CD and the app. When Argo CD runs too, pause what you are not showing, and bring it back for the monitoring part of a demo:
+**On an 8 GB laptop.** Minikube has about 3.4 GB of memory for everything: the control plane, the monitoring stack, Argo CD and the app. Running all of them together pushed the node into a restart storm, so the [Makefile](Makefile) has two modes:
 
 ```bash
-kubectl -n monitoring patch prometheus kps-kube-prometheus-stack-prometheus --type merge -p '{"spec":{"replicas":1}}'
-kubectl -n monitoring patch alertmanager kps-kube-prometheus-stack-alertmanager --type merge -p '{"spec":{"replicas":1}}'
-kubectl -n monitoring scale deploy/kps-grafana --replicas=1
-kubectl -n spendwise scale deploy/spendwise-traffic --replicas=1      # synthetic traffic for the panels
+make mode-monitoring   # Prometheus, Alertmanager, Grafana and demo traffic on; Argo CD paused
+make mode-gitops       # Argo CD on; the monitoring stack and demo traffic paused
 ```
 
 ## GitOps
@@ -595,19 +593,23 @@ Until now the namespace had been deployed by hand with Helm. For GitOps I handed
 
 ![Argo CD application tree for spendwise](screenshots/browser-10-argocd-spendwise.png)
 
+**Repository move.** The project now lives in `github.com/Abhinavsuri90/DevOps-Coursework-final`, and the images are repository-scoped (`ghcr.io/abhinavsuri90/devops-coursework-final/spendwise-*`). Changing `repoURL` in [gitops/argocd-application.yaml](gitops/argocd-application.yaml) was the whole migration. Argo CD synced from the new repository in 110 s, with the new images, every Pod Ready with 0 restarts, and the data intact ([evidence/13-argocd-new-repo.txt](evidence/13-argocd-new-repo.txt)):
+
+![Argo CD switched to the new repository](screenshots/26-argocd-new-repo.png)
+
 ### Live demo (M10): commit → pipeline → deployment update (recorded)
 
-One commit, and everything after it is automatic ([evidence/11-m10-commit-to-deploy.txt](evidence/11-m10-commit-to-deploy.txt)):
+One commit, and everything after it is automatic. This was recorded on the new repository ([evidence/11-m10-commit-to-deploy.txt](evidence/11-m10-commit-to-deploy.txt)):
 
 | Step | What happened | When (UTC) |
 | --- | --- | --- |
-| 1. Developer | Commit [`27f4cae`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/27f4cae) *"SpendWise: show the running version (commit SHA) in the footer"* (backend `GET /api/version` + a test, React footer), then `git push` | 06:20:45 |
-| 2. CI | [Run 38691857530](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38691857530): all 12 jobs green in 5 min 18 s, images pushed as `spendwise-*:27f4caee152f` | 06:20:49 → 06:26:07 |
-| 3. GitOps commit | `github-actions[bot]` committed [`74396f1`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/74396f1) *"gitops: deploy spendwise 27f4caee152f"*, changing only the two image tags | 06:26:03 |
-| 4. Argo CD | Detected `74396f1` and rolled out the new Pods (no restarts) | applied 06:27:16, Healthy 234 s after the commit appeared |
-| 5. Result | `GET /api/version` → `{"version":"27f4caee152f"}`, and the footer shows **version 27f4caee152f** | |
+| 1. Developer | Commit [`c0d8406`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/c0d8406) *"SpendWise: new subtitle (live GitOps demo)"*: one line in [App.jsx](application/frontend/src/App.jsx), committed on its own, then `git push` | 01:53:10 |
+| 2. CI | [Run 38837520932](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38837520932): all 12 jobs green (tests, SAST + IaC scan, SCA, secrets, images + Trivy, gate, GHCR push, kind deploy, GitOps update) in 5 min 26 s. Images pushed as `…/spendwise-*:c0d8406c817d` | 01:53:15 → 01:58:41 |
+| 3. GitOps commit | `github-actions[bot]` committed [`60ac555`](https://github.com/Abhinavsuri90/DevOps-Coursework-final/commit/60ac555) *"gitops: deploy spendwise c0d8406c817d"*, changing only the two image tags | 01:58:37 |
+| 4. Argo CD | Detected `60ac555` and rolled out the new Pods one by one (0 restarts). **Synced + Healthy 72 s** after the commit appeared | applied 01:59:31 |
+| 5. Result | `GET /api/version` → `{"version":"c0d8406c817d"}`. The page shows the new subtitle *"Track every rupee you spend this semester"* and the footer **version c0d8406c817d** | |
 
-| Before: tag `73177c13c2e9`, no version in the footer | After: tag `27f4caee152f`, footer shows the version |
+| Before: tag `37f179315587`, old subtitle | After: tag `c0d8406c817d`, new subtitle and version |
 | --- | --- |
 | ![Before the rollout](screenshots/browser-09-gitops-before.png) | ![After the rollout](screenshots/browser-14-gitops-after.png) |
 

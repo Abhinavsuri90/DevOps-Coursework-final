@@ -1,0 +1,25 @@
+# The project moved to github.com/Abhinavsuri90/DevOps-Coursework-final. Point Argo CD at it (images are now ghcr.io/<owner>/<repo>/spendwise-*)
+$ kubectl -n argocd get applications.argoproj.io spendwise -o jsonpath='before: {.spec.source.repoURL}{"\n"}'
+before: https://github.com/Abhinavsuri90/DevOps-Coursework.git
+$ grep -n 'repoURL' gitops/argocd-application.yaml
+13:    repoURL: https://github.com/Abhinavsuri90/DevOps-Coursework-final.git
+$ kubectl apply -f gitops/argocd-application.yaml
+application.argoproj.io/spendwise configured
+$ SECONDS=0; until [ "$(kubectl -n argocd get applications.argoproj.io spendwise -o jsonpath='{.status.sync.revision}')" = "$(git -C .. rev-parse origin/main)" ] && kubectl -n argocd get applications.argoproj.io spendwise -o jsonpath='{.status.sync.status}{.status.health.status}' | grep -q SyncedHealthy; do sleep 5; done; echo "Synced and Healthy on the new repo after ${SECONDS}s"
+Synced and Healthy on the new repo after 110s
+$ kubectl -n argocd get applications.argoproj.io spendwise -o jsonpath='repo={.spec.source.repoURL} sync={.status.sync.status} health={.status.health.status} revision={.status.sync.revision}{"\n"}'
+repo=https://github.com/Abhinavsuri90/DevOps-Coursework-final.git sync=Synced health=Healthy revision=e8fbaa386bb90d37c2f3306b49ede302804f8c88
+$ kubectl get deploy spendwise-backend spendwise-frontend -n spendwise -o custom-columns='DEPLOYMENT:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'
+DEPLOYMENT           IMAGE
+spendwise-backend    ghcr.io/abhinavsuri90/devops-coursework-final/spendwise-backend:37f179315587
+spendwise-frontend   ghcr.io/abhinavsuri90/devops-coursework-final/spendwise-frontend:37f179315587
+$ kubectl get pods -n spendwise -o custom-columns='POD:.metadata.name,READY:.status.containerStatuses[0].ready,RESTARTS:.status.containerStatuses[0].restartCount'
+POD                                   READY   RESTARTS
+spendwise-backend-f44679669-7txgj     true    0
+spendwise-backend-f44679669-bt8m6     true    0
+spendwise-backend-f44679669-m4clx     true    0
+spendwise-frontend-7d86bf8998-7lcn7   true    0
+spendwise-frontend-7d86bf8998-pz6n5   true    0
+spendwise-postgres-0                  true    0
+$ kubectl exec -n spendwise spendwise-postgres-0 -- psql -U spendwise -d spendwise -tAc 'select count(*) from expenses;' | sed 's/^/rows in expenses: /'
+rows in expenses: 5
