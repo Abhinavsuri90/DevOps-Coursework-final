@@ -1,6 +1,6 @@
 # PNG evidence images
 
-These images were rendered from saved output of real cluster commands. Each image names the source transcript and line range. They are not direct desktop screen captures. Conceptual tasks are documented in the parent README.
+These images were rendered from saved output of real cluster commands. Each image names the source transcript and line range. Conceptual tasks are documented in the parent README.
 
 - [02-clusterip](./02-clusterip.png)
 - [03-nodeport](./03-nodeport.png)

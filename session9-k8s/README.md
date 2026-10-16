@@ -2,7 +2,7 @@
 
 **Course:** SST DevOps & Cloud · **Author:** Abhinav
 
-These commands were run in a temporary Minikube v1.39.0 / Kubernetes v1.37.0 cluster. The complete observed output is in [cluster-lifecycle.txt](evidence/cluster-lifecycle.txt), [kubernetes-basics.txt](evidence/kubernetes-basics.txt) and [basic-objects.txt](evidence/basic-objects.txt). The PNGs are labelled renders of those real transcripts, made with [scripts/render-evidence-png.py](../scripts/render-evidence-png.py); direct desktop screenshots were not captured.
+These commands were run in a temporary Minikube v1.39.0 / Kubernetes v1.37.0 cluster. The complete observed output is in [cluster-lifecycle.txt](evidence/cluster-lifecycle.txt), [kubernetes-basics.txt](evidence/kubernetes-basics.txt) and [basic-objects.txt](evidence/basic-objects.txt). The PNGs are labelled renders of those real transcripts, made with [scripts/render-evidence-png.py](../scripts/render-evidence-png.py); each one names its transcript and line range.
 
 | Assignment task | Where |
 | --- | --- |

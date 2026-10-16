@@ -1,6 +1,6 @@
 # Session 10: Kubernetes core objects and deployment strategies
 
-Run from the repository root with an active Minikube cluster. The `.yaml` and `.yml` files use JSON syntax, which is valid YAML and accepted by `kubectl`. Actual run output is in [evidence](evidence/), with [PNG renders of recorded output](screenshots/README.md). Direct desktop screenshots were not captured. The intentionally invalid selector manifest is expected to fail API validation.
+Run from the repository root with an active Minikube cluster. The `.yaml` and `.yml` files use JSON syntax, which is valid YAML and accepted by `kubectl`. The full output of the run is in [evidence/](evidence/). The screenshots in each section are PNG renders of that recorded output; each one names its transcript and line range ([all screenshots](screenshots/README.md)). The intentionally invalid selector manifest is expected to fail API validation.
 
 ## 1. Cluster baseline
 
@@ -12,6 +12,8 @@ kubectl get nodes -o wide
 ```
 
 Confirm the node is `Ready` and the API and CoreDNS addresses are shown.
+
+![Cluster baseline: node Ready, API and CoreDNS addresses](screenshots/01-cluster-health.png)
 
 ## 2–4. Pods, image errors, and transient phases
 
@@ -35,6 +37,12 @@ kubectl delete -f session10-k8s-core-objects/hello.yml
 
 An invalid image can still produce a valid Pod API object; image download fails later on the node. `ErrImagePull` can become `ImagePullBackOff`. A short batch Pod may finish before polling captures `ContainerCreating` or `Running`; inspect events with `kubectl describe pod hello`. `Completed` is the displayed status for phase `Succeeded`.
 
+![A Pod running](screenshots/02-pod-running.png)
+
+![ErrImagePull and ImagePullBackOff for an invalid image](screenshots/03-image-pull-error.png)
+
+![A short batch Pod reaching Completed](screenshots/04-hello-lifecycle.png)
+
 ## 5. Twelve Pod lifecycle labs
 
 ```bash
@@ -50,6 +58,8 @@ kubectl delete -f session10-k8s-core-objects/pod-lifecycle/ --ignore-not-found
 ```
 
 The files cover running, unschedulable, succeeded, failed, crash loop, image pull failure, readiness, liveness, startup, init container, sidecar, and graceful termination. The intentionally bad Pods need deletion after inspection. For termination, start `kubectl logs -f lifecycle-termination` in one terminal before deleting it in another.
+
+![The twelve Pod lifecycle labs](screenshots/05-pod-lifecycle.png)
 
 ## 6–7. ReplicaSet, StatefulSet, and DaemonSet
 
@@ -84,6 +94,10 @@ kubectl delete -f session10-k8s-core-objects/daemonset/node-agent-ds.yaml
 
 The MySQL demo password is generated at runtime and is not stored in Git. StatefulSet PVCs survive deletion by default.
 
+![ReplicaSet and StatefulSet with stable names and PVCs](screenshots/06-replicaset-statefulset.png)
+
+![DaemonSet: one Pod per node](screenshots/07-daemonset.png)
+
 ## 8. Rolling update and rollback
 
 ```bash
@@ -98,6 +112,8 @@ kubectl delete deployment rolling-demo
 ```
 
 `maxSurge: 1` allows one extra Pod above three replicas. `maxUnavailable: 0` keeps all three desired replicas available during a healthy rollout.
+
+![Rolling update and rollback](screenshots/08-rolling-update.png)
 
 ## 9. Troubleshooting drills
 
@@ -118,6 +134,8 @@ kubectl delete -f session10-k8s-core-objects/troubleshooting/selector-fixed.yaml
 ```
 
 The bad image is a deliberately invalid registry address. A rolling update with zero unavailable replicas keeps old Pods available while new Pods cannot pull their image.
+
+![Troubleshooting drills: bad image and invalid selector](screenshots/09-troubleshooting.png)
 
 ## 10. Concepts
 
@@ -153,6 +171,8 @@ kubectl delete -f session10-k8s-core-objects/02-blue-green/deployment-green.yaml
 
 Both Services have the same name; applying either manifest updates its selector. Endpoint propagation takes time. In the actual run, an immediate request after switching still returned v1; after an eight-second wait, Blue returned v1, Green returned v2, and rollback returned v1. See [verified cutover output](evidence/blue-green-verified.txt).
 
+![Blue-green cutover and rollback through the Service selector](screenshots/11-blue-green-cutover.png)
+
 ## 12. Canary by replica ratio
 
 ```bash
@@ -171,6 +191,8 @@ kubectl delete -f session10-k8s-core-objects/03-canary/
 
 Use `kubectl run curl-check --rm -it --restart=Never --image=curlimages/curl -- sh` and request `http://canary` repeatedly from inside the cluster. Ratios are approximate: connection reuse and endpoint routing can skew short samples. After propagation, 100 requests returned 88 v1 / 12 v2 at 9:1 and 73 v1 / 27 v2 at 7:3; see [canary output](evidence/canary-verified.txt).
 
+![Canary traffic split at 9:1 and 7:3](screenshots/12-canary-traffic-split.png)
+
 ## 13. Recreate and deliberate outage
 
 ```bash
@@ -186,6 +208,8 @@ kubectl delete -f session10-k8s-core-objects/04-recreate/service.yaml
 kubectl delete -f session10-k8s-core-objects/04-recreate/deployment-v1.yaml
 ```
 
-Recreate intentionally leaves a period with no ready endpoints. Capture real terminal output and screenshots for each task after running the lab.
+Recreate intentionally leaves a period with no ready endpoints: every old Pod stops before any new Pod starts, so requests fail until v2 is Ready.
 
 The [Recreate run](evidence/recreate.txt) captured four v1 responses, two failed requests during replacement, and 39 v2 responses. [Pod output](evidence/pods.txt), [lifecycle output](evidence/pod-lifecycle.txt), [controller output](evidence/controllers.txt), and [rolling update and troubleshooting output](evidence/rolling-troubleshooting.txt) cover the other executed labs.
+
+![Recreate: v1 responses, failed requests during the replacement, then v2](screenshots/13-recreate-downtime-outage.png)

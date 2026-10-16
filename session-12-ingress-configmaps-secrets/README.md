@@ -1,6 +1,6 @@
 # Session 12: ConfigMaps, Secrets, Ingress, and a two-tier demo
 
-Run from this directory with a Minikube cluster and `kubectl`. The [ConfigMap and Secret](evidence/config-and-secret.txt), [full demo](evidence/full-demo-run.txt), [Ingress and TLS](evidence/ingress-and-tls.txt), [HTTPS virtual hosts](evidence/hybrid-hosts-verified.txt), and [cleanup](evidence/full-demo-cleanup.txt) outputs came from a temporary cluster. [PNG renders of recorded output](screenshots/README.md) are included; direct desktop screenshots were not captured.
+Run from this directory with a Minikube cluster and `kubectl`. The [ConfigMap and Secret](evidence/config-and-secret.txt), [full demo](evidence/full-demo-run.txt), [Ingress and TLS](evidence/ingress-and-tls.txt), [HTTPS virtual hosts](evidence/hybrid-hosts-verified.txt), and [cleanup](evidence/full-demo-cleanup.txt) outputs came from a temporary cluster. The screenshots are PNG renders of that recorded output, each naming its transcript and line range ([all screenshots](screenshots/README.md)).
 
 ## Deliverables
 

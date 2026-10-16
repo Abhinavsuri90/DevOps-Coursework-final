@@ -1,6 +1,6 @@
 # Session 11: Kubernetes Services and DNS
 
-Run from this directory after `minikube start`. All examples use the `default` namespace and are designed to be applied separately. The [Service and DNS output](evidence/services.txt) and [external access output](evidence/external-access.txt) came from the temporary Minikube run. [PNG renders of recorded output](screenshots/README.md) are included; direct desktop screenshots were not captured.
+Run from this directory after `minikube start`. All examples use the `default` namespace and are designed to be applied separately. The [Service and DNS output](evidence/services.txt) and [external access output](evidence/external-access.txt) came from the temporary Minikube run. The screenshots are PNG renders of that recorded output, each naming its transcript and line range ([all screenshots](screenshots/README.md)).
 
 ## Deliverables
 
