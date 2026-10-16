@@ -55,7 +55,7 @@ export default function App() {
     <main>
       <header>
         <h1>SpendWise</h1>
-        <p>Track what you spend this semester</p>
+        <p>Track every rupee you spend this semester</p>
       </header>
 
       {error && <div className="error">{error}</div>}
