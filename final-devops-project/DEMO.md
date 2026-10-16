@@ -7,6 +7,7 @@
 ```bash
 cd final-devops-project
 minikube start                     # the cluster keeps all state between restarts
+make mode-gitops                   # 8 GB laptop: Argo CD on, monitoring stack paused
 make status                        # Argo CD Synced/Healthy, Pods Running
 make port-forward                  # leave this terminal open
 caffeinate -dims &                 # stop the Mac from sleeping during the demo
@@ -40,5 +41,5 @@ Open these tabs:
 | The app tab says *connection refused* | The port-forward stopped. Run `make port-forward` again |
 | Argo CD hasn't synced after 2 minutes | Argo CD UI → **Refresh**, or `kubectl -n argocd annotate applications.argoproj.io spendwise argocd.argoproj.io/refresh=normal --overwrite` |
 | Pods restarting after the laptop slept | `minikube stop && minikube start`, then `make status` |
-| Grafana is needed for questions | `kubectl -n monitoring scale deploy/kps-grafana --replicas=1`, then http://localhost:3000 (Dashboards → *SpendWise - Application Overview*) |
+| Prometheus/Grafana are needed for questions | `make mode-monitoring` (pauses Argo CD, starts Prometheus, Alertmanager, Grafana and demo traffic), then http://localhost:9090 and http://localhost:3000 (Dashboards → *SpendWise - Application Overview*). `make mode-gitops` switches back |
 | The pipeline is slow | Show the recorded run in the README while it finishes |

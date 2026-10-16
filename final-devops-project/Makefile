@@ -11,7 +11,7 @@ PY           := $(VENV)/bin
 
 .DEFAULT_GOAL := help
 .PHONY: help venv test frontend-build scan scan-iac compose-up compose-down images deploy-helm \
-        monitoring argocd gitops port-forward tf-check status clean
+        monitoring argocd gitops mode-gitops mode-monitoring port-forward tf-check status clean
 
 help: ## List the targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-15s %s\n", $$1, $$2}'
@@ -73,6 +73,21 @@ gitops: ## Hand the namespace to Argo CD: remove a hand-run Helm release (the PV
 	-helm uninstall spendwise -n $(NAMESPACE) --wait
 	kubectl apply -f gitops/argocd-application.yaml
 	@echo "Watch it: kubectl -n argocd get applications.argoproj.io spendwise -w"
+
+# An 8 GB laptop gives Minikube about 3.4 GB: run Argo CD or the monitoring stack, not both at full size.
+mode-gitops: ## Laptop mode for the GitOps demo: Argo CD on, Prometheus/Alertmanager/Grafana and demo traffic paused
+	kubectl -n monitoring patch prometheus kps-kube-prometheus-stack-prometheus --type merge -p '{"spec":{"replicas":0}}'
+	kubectl -n monitoring patch alertmanager kps-kube-prometheus-stack-alertmanager --type merge -p '{"spec":{"replicas":0}}'
+	kubectl -n monitoring scale deploy/kps-grafana --replicas=0
+	-kubectl -n $(NAMESPACE) scale deploy/spendwise-traffic --replicas=0
+	kubectl -n argocd scale statefulset/argocd-application-controller deploy/argocd-repo-server deploy/argocd-server --replicas=1
+
+mode-monitoring: ## Laptop mode for the monitoring demo: Prometheus, Alertmanager, Grafana and demo traffic on, Argo CD paused
+	kubectl -n argocd scale statefulset/argocd-application-controller deploy/argocd-repo-server deploy/argocd-server --replicas=0
+	kubectl -n monitoring patch prometheus kps-kube-prometheus-stack-prometheus --type merge -p '{"spec":{"replicas":1}}'
+	kubectl -n monitoring patch alertmanager kps-kube-prometheus-stack-alertmanager --type merge -p '{"spec":{"replicas":1}}'
+	kubectl -n monitoring scale deploy/kps-grafana --replicas=1
+	-kubectl apply -f monitoring/traffic-generator.yaml && kubectl -n $(NAMESPACE) scale deploy/spendwise-traffic --replicas=1
 
 port-forward: ## Ingress :18080, Argo CD :8081, Prometheus :9090, Grafana :3000 (Ctrl+C stops them)
 	@echo "App http://spendwise.local:18080 (add '127.0.0.1 spendwise.local' to /etc/hosts) | Argo CD http://localhost:8081 | Prometheus http://localhost:9090 | Grafana http://localhost:3000"
