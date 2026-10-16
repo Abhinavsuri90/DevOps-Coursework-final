@@ -1,0 +1,77 @@
+# M7 second run on AWS (ap-southeast-2): the same code applied again for the AWS Console screenshots, then destroyed again
+# 'mask' hides the 12-digit AWS account ID (<account-id>) and my public IP (<my-ip>)
+$ terraform plan -input=false -no-color -out eks.tfplan 2>&1 | grep -E '^Plan:|Error' | mask
+Plan: 18 to add, 0 to change, 0 to destroy.
+$ SECONDS=0; terraform apply -input=false -no-color eks.tfplan 2>&1 | grep -E 'Creation complete|Apply complete|Error' | mask; echo "apply took $((SECONDS/60)) min $((SECONDS%60)) s"
+aws_iam_role.cluster: Creation complete after 2s [id=spendwise-eks-cluster-role]
+aws_iam_role.node: Creation complete after 2s [id=spendwise-eks-node-role]
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"]: Creation complete after 1s [id=spendwise-eks-node-role/arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly]
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"]: Creation complete after 1s [id=spendwise-eks-node-role/arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy]
+aws_iam_role_policy_attachment.cluster: Creation complete after 1s [id=spendwise-eks-cluster-role/arn:aws:iam::aws:policy/AmazonEKSClusterPolicy]
+aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"]: Creation complete after 1s [id=spendwise-eks-node-role/arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy]
+aws_vpc.main: Creation complete after 7s [id=vpc-008db6611b1f011bd]
+aws_internet_gateway.main: Creation complete after 2s [id=igw-0a7771df1bb149793]
+aws_route_table.public: Creation complete after 3s [id=rtb-0436385b11f028d9b]
+aws_kms_key.eks: Creation complete after 15s [id=dc4822e7-caad-4992-81ec-076987e5d476]
+aws_iam_role_policy.cluster_kms: Creation complete after 1s [id=spendwise-eks-cluster-role:spendwise-eks-secrets-kms]
+aws_kms_alias.eks: Creation complete after 1s [id=alias/spendwise-eks-secrets]
+aws_subnet.public[1]: Creation complete after 13s [id=subnet-0debdfef6dd66fe99]
+aws_subnet.public[0]: Creation complete after 14s [id=subnet-07a92fffcc22914c7]
+aws_route_table_association.public[1]: Creation complete after 2s [id=rtbassoc-0247e8362f93d1eb4]
+aws_route_table_association.public[0]: Creation complete after 2s [id=rtbassoc-0db8700bc0162be81]
+aws_eks_cluster.main: Creation complete after 8m51s [id=spendwise-eks]
+aws_eks_node_group.default: Creation complete after 1m3s [id=spendwise-eks:spendwise-eks-nodes]
+Apply complete! Resources: 18 added, 0 changed, 0 destroyed.
+apply took 10 min 20 s
+$ terraform output -no-color | mask
+cluster_endpoint = "https://<account-id>AB0517676E3FC7A8E121.gr7.ap-southeast-2.eks.amazonaws.com"
+cluster_name = "spendwise-eks"
+cluster_version = "1.36"
+kubeconfig_command = "aws eks update-kubeconfig --region ap-southeast-2 --name spendwise-eks"
+node_group_status = "ACTIVE"
+public_subnet_azs = [
+  "ap-southeast-2a",
+  "ap-southeast-2b",
+]
+public_subnet_ids = [
+  "subnet-07a92fffcc22914c7",
+  "subnet-0debdfef6dd66fe99",
+]
+secrets_kms_key_arn = "arn:aws:kms:ap-southeast-2:<account-id>:key/dc4822e7-caad-4992-81ec-076987e5d476"
+vpc_id = "vpc-008db6611b1f011bd"
+# What the Console screenshots show, from the AWS CLI
+$ aws eks describe-cluster --name spendwise-eks --query 'cluster.[name,status,version,resourcesVpcConfig.vpcId]' --output text
+spendwise-eks	ACTIVE	1.36	vpc-008db6611b1f011bd
+$ aws eks describe-nodegroup --cluster-name spendwise-eks --nodegroup-name spendwise-eks-nodes --query 'nodegroup.[nodegroupName,status,instanceTypes[0],scalingConfig.desiredSize]' --output text
+spendwise-eks-nodes	ACTIVE	t3.small	1
+$ aws ec2 describe-vpcs --filters Name=tag:Name,Values=spendwise-eks-vpc --query 'Vpcs[].[Tags[?Key==`Name`]|[0].Value,VpcId,CidrBlock,State]' --output text
+spendwise-eks-vpc	vpc-008db6611b1f011bd	10.21.0.0/16	available
+$ aws ec2 describe-subnets --filters Name=tag:Name,Values=spendwise-eks-public-* --query 'Subnets[].[Tags[?Key==`Name`]|[0].Value,SubnetId,AvailabilityZone,CidrBlock]' --output text | sort
+spendwise-eks-public-1	subnet-07a92fffcc22914c7	ap-southeast-2a	10.21.1.0/24
+spendwise-eks-public-2	subnet-0debdfef6dd66fe99	ap-southeast-2b	10.21.2.0/24
+$ aws eks update-kubeconfig --region ap-southeast-2 --name spendwise-eks --kubeconfig eks.kubeconfig | sed 's#/Users/[^ ]*/##' | mask
+Added new context arn:aws:eks:ap-southeast-2:<account-id>:cluster/spendwise-eks to eks.kubeconfig
+$ kubectl --kubeconfig eks.kubeconfig get nodes -o wide
+NAME                                            STATUS   ROLES    AGE   VERSION               INTERNAL-IP   EXTERNAL-IP    OS-IMAGE                        KERNEL-VERSION                            CONTAINER-RUNTIME
+ip-10-21-2-98.ap-southeast-2.compute.internal   Ready    <none>   37s   v1.36.4-eks-b9510e3   10.21.2.98    3.25.137.198   Amazon Linux 2023.12.20261012   6.18.54-121.166.amzn2023.x86_64 (amd64)   containerd://2.3.5+unknown
+# The mask in terraform output above also hid the first 12 characters of the cluster endpoint's random host name, because they happened to be digits; it is not the account ID
+# AWS Console screenshots taken at 11:57-11:59 IST: the EKS cluster (Active), its Compute tab (node group Active) and the VPC list (screenshots/31-33)
+# terraform destroy again
+$ SECONDS=0; terraform destroy -auto-approve -input=false -no-color 2>&1 | grep -E 'Destroy complete|Error' | mask; echo "destroy took $((SECONDS/60)) min $((SECONDS%60)) s"
+Destroy complete! Resources: 18 destroyed.
+destroy took 11 min 25 s
+$ terraform state list | wc -l | sed 's/^ */resources left in state: /'
+resources left in state: 0
+$ aws eks describe-cluster --name spendwise-eks 2>&1 | grep -E 'ERROR' | mask
+aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the DescribeCluster operation: No cluster found for name: spendwise-eks.
+$ aws ec2 describe-vpcs --vpc-ids vpc-008db6611b1f011bd 2>&1 | grep -E 'ERROR'
+aws: [ERROR]: An error occurred (InvalidVpcID.NotFound) when calling the DescribeVpcs operation: The vpc ID 'vpc-008db6611b1f011bd' does not exist
+# Nothing billable left in the region
+$ aws eks list-clusters --query 'length(clusters)'
+0
+$ aws ec2 describe-instances --filters Name=instance-state-name,Values=pending,running,stopping,stopped --query 'length(Reservations)'
+0
+$ aws ec2 describe-vpcs --filters Name=is-default,Values=false --query 'length(Vpcs)'
+0
+$ aws ec2 describe-addresses --query 'length(Addresses)'
+0

@@ -61,7 +61,7 @@ The [Makefile](Makefile) wraps every command used below. [DEMO.md](DEMO.md) is t
 | M4 Docker | Backend Dockerfile, multi-stage frontend Dockerfile, non-root, `docker compose up --build` | [backend/Dockerfile](backend/Dockerfile), [frontend/Dockerfile](frontend/Dockerfile) (multi-stage), [docker-compose.yml](docker-compose.yml) · [screenshot](screenshots/01-docker-compose.png) |
 | M5 CI/CD | Workflow on push to `main`, pytest gate, frontend build, both images built, pushed to GHCR with SHA tags | [.github/workflows/final-devops-project.yml](../.github/workflows/final-devops-project.yml) (copy in [.github/workflows/](.github/workflows/)) · [green run](screenshots/browser-11-github-actions-run.png) · [GHCR SHA tags](screenshots/browser-12-ghcr-tags.png) |
 | M6 DevSecOps | Trivy on both images, fails on HIGH/CRITICAL, explanation | `build-images` job + [security/trivy.yaml](security/trivy.yaml) · [Trivy results from CI](screenshots/browser-15-github-trivy-annotations.png) · [explanation](#devsecops-implementation) |
-| M7 Terraform | VPC with 2 public subnets, EKS with a node group, plan/apply/destroy, `tfvars.example` | [terraform/](terraform/), [terraform.tfvars.example](terraform/terraform.tfvars.example) · [Terraform infrastructure](#terraform-infrastructure) · applied, verified with `kubectl` and destroyed on AWS: [recorded run](#recorded-run-on-aws), [evidence](evidence/14-terraform-aws-eks.txt) |
+| M7 Terraform | VPC with 2 public subnets, EKS with a node group, plan/apply/destroy, `tfvars.example` | [terraform/](terraform/), [terraform.tfvars.example](terraform/terraform.tfvars.example) · [Terraform infrastructure](#terraform-infrastructure) · applied, verified with `kubectl` and destroyed on AWS: [recorded run](#recorded-run-on-aws), [evidence](evidence/14-terraform-aws-eks.txt) · [plan + apply](screenshots/27-eks-plan-apply.png) · Console: [EKS cluster](screenshots/31-aws-console-eks-cluster.png), [node group](screenshots/32-aws-console-eks-node-group.png), [VPC](screenshots/33-aws-console-vpc.png) · [destroy](screenshots/30-eks-destroy.png) |
 | M8 Kubernetes + Helm | Namespace, chart, 2+ replicas each, ClusterIP Services, Ingress `/` → frontend and `/api` → backend | [k8s/namespace.yaml](k8s/namespace.yaml), [helm/spendwise/](helm/spendwise/) · [screenshots](#kubernetes-deployment) |
 | M9 Observability | `/metrics`, Prometheus scraping, Grafana panels with live data | [monitoring/](monitoring/), ServiceMonitor/rules/dashboard in the chart · [Monitoring](#monitoring) |
 | M10 Docs + demo | This README; commit → pipeline → deployment update | this file · [recorded live demo](#live-demo-m10-commit--pipeline--deployment-update-recorded) |
@@ -379,6 +379,26 @@ The whole life cycle ran against a real AWS account ([evidence/14-terraform-aws-
 
 ![terraform destroy and proof that nothing is left](screenshots/30-eks-destroy.png)
 
+### AWS Console
+
+For the Console screenshots the same code was applied a second time ([evidence/15-terraform-aws-console-run.txt](evidence/15-terraform-aws-console-run.txt)): `Plan: 18 to add`, `Apply complete! Resources: 18 added` in 10 min 20 s, the node Ready. The screenshots were taken in region Asia Pacific (Sydney), and then the stack was destroyed again: `Destroy complete! Resources: 18 destroyed.` in 11 min 25 s, with nothing left in the region. The account ID is covered in the ARNs.
+
+**EKS → Clusters → `spendwise-eks`:** status **Active**, Kubernetes 1.36, API endpoint in `ap-southeast-2`, 1 node group, 0 health issues.
+
+![AWS Console: EKS cluster spendwise-eks, Active, Kubernetes 1.36](screenshots/31-aws-console-eks-cluster.png)
+
+**Compute → Node groups:** `spendwise-eks-nodes`, desired size 1, AMI 1.36.4, **Active**.
+
+![AWS Console: node group spendwise-eks-nodes, Active](screenshots/32-aws-console-eks-node-group.png)
+
+**VPC → Your VPCs:** `spendwise-eks-vpc` 10.21.0.0/16, **Available**, next to the account's default VPC.
+
+![AWS Console: VPC spendwise-eks-vpc, 10.21.0.0/16, Available](screenshots/33-aws-console-vpc.png)
+
+The second run in the terminal: plan, apply, the same facts from the AWS CLI, and the destroy.
+
+![Second run: plan 18, apply, CLI checks, destroy 18](screenshots/34-eks-console-run.png)
+
 ## CI/CD pipeline
 
 The active workflow is [.github/workflows/final-devops-project.yml](../.github/workflows/final-devops-project.yml) in the repository root, because GitHub only runs workflows from there. An identical copy is kept in [.github/workflows/](.github/workflows/) inside this folder, and the first job `diff`s the two.
@@ -422,7 +442,7 @@ Images are tagged only with the **commit SHA**, never `latest`, so every running
 
 Every run is listed under [Actions → "Final project · SpendWise CI/CD"](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/final-devops-project.yml).
 
-**A green run.** [Run 38836429276](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38836429276), on commit `37f1793`, passed all 12 jobs in 5 min 57 s:
+**A green run.** [Run 38858988420](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38858988420), on commit `a6bca01` (the first run after the move to the brief's folder layout), passed all 12 jobs in 6 min 19 s. Both image scans report 0 CRITICAL and 0 HIGH, and the GitOps job committed `gitops: deploy spendwise a6bca01bb2ce`, which Argo CD rolled out:
 
 ![Green pipeline run on GitHub Actions](screenshots/browser-11-github-actions-run.png)
 
@@ -725,6 +745,8 @@ These were not planted. They came up while building and running the project, and
 | 22 | [18](screenshots/18-real-issue-unbounded-list.png) · [19](screenshots/19-real-issue-fix-verified.png) | Real issue: unbounded list endpoint, before and after |
 | 23 | [20-terraform-validate-graph.png](screenshots/20-terraform-validate-graph.png) | Terraform init/fmt/validate and dependency graph (M7) |
 | 23b | [27](screenshots/27-eks-plan-apply.png) · [28](screenshots/28-eks-outputs-kubectl.png) · [29](screenshots/29-eks-verify-settings.png) · [30](screenshots/30-eks-destroy.png) | Terraform on AWS: plan and apply (18 resources), `kubectl` on EKS, cluster checks, destroy (M7) |
+| 23c | [31](screenshots/31-aws-console-eks-cluster.png) · [32](screenshots/32-aws-console-eks-node-group.png) · [33](screenshots/33-aws-console-vpc.png) | AWS Console: EKS cluster Active, node group Active, VPC in Sydney (M7) |
+| 23d | [34-eks-console-run.png](screenshots/34-eks-console-run.png) | The second apply/destroy run made for the Console screenshots (M7) |
 | 24 | [browser-11-github-actions-run.png](screenshots/browser-11-github-actions-run.png) | Green GitHub Actions run, all 12 jobs (M5) |
 | 25 | [browser-12-ghcr-tags.png](screenshots/browser-12-ghcr-tags.png) | GHCR images tagged with commit SHAs (M5) |
 | 26 | [browser-15-github-trivy-annotations.png](screenshots/browser-15-github-trivy-annotations.png) | Trivy results of both images, published by the pipeline (M6) |
