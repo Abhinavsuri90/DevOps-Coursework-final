@@ -133,11 +133,11 @@ The package build, Docker build, smoke test (including the `400` for an unknown 
 - **Image:** [GHCR packages](https://github.com/Abhinavsuri90?tab=packages): `gpa-calculator`, tagged with the commit SHA and `latest`.
 - **Deployments:** the repository's *Environments → staging* page lists each CD deployment.
 
-**CI run** ([run 38690443468](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38690443468)): lint → tests on Python 3.11, 3.12 and 3.13 → build artifact + Docker build and smoke test, plus the secrets demo. All jobs are green:
+**CI run** ([run 38836429104](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38836429104)): lint → tests on Python 3.11, 3.12 and 3.13 → build artifact + Docker build and smoke test, plus the secrets demo. All jobs are green:
 
 ![Session 16 CI run on GitHub](screenshots/04-github-ci-run.png)
 
-**CD run** ([run 38690551859](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38690551859)): started by `workflow_run` once that CI run succeeded. It published the image to GHCR and deployed it to `staging`:
+**CD run** ([run 38836514770](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/runs/38836514770)): started by `workflow_run` once that CI run succeeded. It published the image to GHCR and deployed it to `staging`:
 
 ![Session 16 CD run on GitHub](screenshots/05-github-cd-run.png)
 
