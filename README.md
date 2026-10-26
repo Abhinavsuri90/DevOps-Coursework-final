@@ -21,6 +21,8 @@ This repository holds all of my DevOps homework, from Linux basics to a complete
 
 **Grading:** the [rubric map](final-devops-project/README.md#rubric-map) links every capstone requirement (M1–M10) to its file, screenshot and recorded evidence. The project follows the brief's layout: `backend/`, `frontend/`, `docker-compose.yml`, `k8s/`, `helm/`, `terraform/`, `monitoring/`, `.github/workflows/`.
 
+**Presentation:** [SpendWise DevOps Capstone, 18 slides (PDF on Google Drive)](https://drive.google.com/file/d/1MOUyH8X_VMM7THeL8x-YOiapEYEuX67m/view?usp=sharing)
+
 ## Sessions
 
 | Session | Topic | README |
