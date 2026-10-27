@@ -4,7 +4,7 @@
 
 [![Final project CI/CD](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/final-devops-project.yml/badge.svg)](https://github.com/Abhinavsuri90/DevOps-Coursework-final/actions/workflows/final-devops-project.yml)
 
-**Presentation:** [SpendWise DevOps Capstone, 18 slides (PDF on Google Drive)](https://drive.google.com/file/d/1MOUyH8X_VMM7THeL8x-YOiapEYEuX67m/view?usp=sharing) · **Live demo script:** [DEMO.md](DEMO.md)
+**Presentation video:** [watch it on Google Drive](https://drive.google.com/file/d/1M-TLJpH_iL0mrWlVscXNAT0SQ9CEVnz5/view?usp=sharing) · **Slides:** [SpendWise DevOps Capstone, 18 slides (PDF on Google Drive)](https://drive.google.com/file/d/1MOUyH8X_VMM7THeL8x-YOiapEYEuX67m/view?usp=sharing)
 
 SpendWise is a small expense tracker for students. You add what you spend (mess fees, books, travel…) and see totals by category. It is my own application, written for this project:
 
@@ -30,7 +30,7 @@ make scan          # secret, dependency and IaC scans with the same tools as CI
 make status        # what Argo CD has deployed on the cluster
 ```
 
-The [Makefile](Makefile) wraps every command used below. [DEMO.md](DEMO.md) is the 5-minute script for the live presentation.
+The [Makefile](Makefile) wraps every command used below.
 
 ## Contents
 
@@ -66,7 +66,7 @@ The [Makefile](Makefile) wraps every command used below. [DEMO.md](DEMO.md) is t
 | M7 Terraform | VPC with 2 public subnets, EKS with a node group, plan/apply/destroy, `tfvars.example` | [terraform/](terraform/), [terraform.tfvars.example](terraform/terraform.tfvars.example) · [Terraform infrastructure](#terraform-infrastructure) · applied, verified with `kubectl` and destroyed on AWS: [recorded run](#recorded-run-on-aws), [evidence](evidence/14-terraform-aws-eks.txt) · [plan + apply](screenshots/27-eks-plan-apply.png) · Console: [EKS cluster](screenshots/31-aws-console-eks-cluster.png), [node group](screenshots/32-aws-console-eks-node-group.png), [VPC](screenshots/33-aws-console-vpc.png) · [destroy](screenshots/30-eks-destroy.png) |
 | M8 Kubernetes + Helm | Namespace, chart, 2+ replicas each, ClusterIP Services, Ingress `/` → frontend and `/api` → backend | [k8s/namespace.yaml](k8s/namespace.yaml), [helm/spendwise/](helm/spendwise/) · [screenshots](#kubernetes-deployment) |
 | M9 Observability | `/metrics`, Prometheus scraping, Grafana panels with live data | [monitoring/](monitoring/), ServiceMonitor/rules/dashboard in the chart · [Monitoring](#monitoring) |
-| M10 Docs + demo | This README; commit → pipeline → deployment update | this file · [presentation slides (PDF)](https://drive.google.com/file/d/1MOUyH8X_VMM7THeL8x-YOiapEYEuX67m/view?usp=sharing) · [demo script](DEMO.md) · [recorded live demo](#live-demo-m10-commit--pipeline--deployment-update-recorded) |
+| M10 Docs + demo | This README; commit → pipeline → deployment update | this file · [presentation video](https://drive.google.com/file/d/1M-TLJpH_iL0mrWlVscXNAT0SQ9CEVnz5/view?usp=sharing) · [presentation slides (PDF)](https://drive.google.com/file/d/1MOUyH8X_VMM7THeL8x-YOiapEYEuX67m/view?usp=sharing) · [recorded live demo](#live-demo-m10-commit--pipeline--deployment-update-recorded) |
 
 ## Project overview
 
